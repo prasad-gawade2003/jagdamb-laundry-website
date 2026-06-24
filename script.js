@@ -15,7 +15,7 @@ const shop = {
 };
 
 const services = [
-  { icon: "W", name: "Wash & Fold", desc: "Daily wear cleaned, folded and packed.", price: 70, unit: "/kg" },
+  { icon: "W", name: "Wash & Fold", desc: "Daily wear cleaned, folded and packed.", price: 1, unit: "/kg" },
   { icon: "I", name: "Wash & Iron", desc: "Fresh wash with crisp ironing.", price: 90, unit: "/kg" },
   { icon: "D", name: "Dry Cleaning", desc: "Premium care for suits, sarees and delicate clothes.", price: 60 },
   { icon: "S", name: "Saree Ironing", desc: "Sharp finish for office and occasion wear.", price: 60 },
@@ -119,8 +119,8 @@ function quickMessage() {
 
 function renderServices() {
   byId("serviceGrid").innerHTML = services
-      .map(
-        (service) => `
+    .map(
+      (service) => `
           <article class="service-card">
             <span class="service-icon">${service.icon}</span>
             <h3>${service.name}</h3>
@@ -129,7 +129,7 @@ function renderServices() {
             <button class="btn soft add-service" type="button" data-name="${service.name}">Add to Order</button>
           </article>
         `,
-      )
+    )
     .join("");
 }
 
@@ -152,8 +152,8 @@ function renderPricing() {
 
   const itemSelectEl = byId("itemSelect");
   if (itemSelectEl) {
-    itemSelectEl.innerHTML = priceItems
-      .map((row, index) => `<option value="${index}">${row.item} - ${row.service} (${currency(row.price)})</option>`)
+    itemSelectEl.innerHTML = services
+      .map((service, index) => `<option value="${index}">${service.name} (${currency(service.price)}${service.unit || ''})</option>`)
       .join("");
   }
 }
@@ -388,12 +388,12 @@ function setupEvents() {
     addItemBtn.addEventListener("click", () => {
       const sel = byId("itemSelect");
       const idx = sel ? Number(sel.value) : NaN;
-      const item = Number.isFinite(idx) ? priceItems[idx] : undefined;
-      if (!item) {
-        toast("No priced items available to add.");
+      const service = Number.isFinite(idx) ? services[idx] : undefined;
+      if (!service) {
+        toast("No items available to add.");
         return;
       }
-      addItem(item, byId("itemQty").value);
+      addItem({ item: service.name, service: "Service Package", price: service.price }, byId("itemQty").value);
     });
   }
 
@@ -451,28 +451,67 @@ function setupEvents() {
       const order = getOrderData("Payment Waiting");
       if (method === "Online Payment") {
         try {
-          // create payment on backend which in turn calls provider
-          const payload = await createPaymentOnServer(order);
-          // payload: { orderId, qrUrl, expiresAt }
+          // create payment on backend which in turn calls Razorpay
+          const payload = await createRazorpayOrderOnServer(order);
+          // payload: { order_id, amount, currency, key_id }
           pendingOrder = order;
-          pendingOrder.id = payload.orderId || pendingOrder.id;
-          // update modal and UI
-          const amountEl = byId('modalAmount');
-          if (amountEl) amountEl.textContent = currency(order.total);
-          openModal();
-          startServerQrSession(payload.orderId, payload.qrUrl, payload.expiresAt);
-          // ensure paymentSection visible as fallback
-          origShowPayment(order);
-          // start polling for status
-          startPaymentPolling(payload.orderId, () => {
-            // on success
-            stopPaymentPolling();
-            if (pendingOrder) {
-              pendingOrder.paymentStatus = 'Paid';
+          pendingOrder.id = payload.order_id;
+
+          // Open Razorpay Checkout Modal
+          const options = {
+            key: payload.key_id,
+            amount: payload.amount,
+            currency: payload.currency,
+            name: "Jagdamb Laundry",
+            description: "Laundry Order Payment",
+            order_id: payload.order_id,
+            handler: async function (response) {
+              try {
+                // Send payment credentials to verification endpoint
+                const verifyResp = await fetch(API_BASE + '/api/verify-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature,
+                  })
+                });
+
+                if (verifyResp.ok) {
+                  if (pendingOrder) {
+                    pendingOrder.paymentStatus = 'Paid';
+                  }
+                  completeOrder('Paid');
+                } else {
+                  const errData = await verifyResp.json();
+                  toast("Payment verification failed: " + (errData.error || "Unknown error"));
+                }
+              } catch (verificationErr) {
+                console.error("Verification call failed:", verificationErr);
+                toast("Could not contact payment verification server.");
+              }
+            },
+            prefill: {
+              name: order.customerName || "",
+              contact: order.phone || "",
+            },
+            theme: {
+              color: "#1e3a8a",
+            },
+            modal: {
+              ondismiss: function () {
+                toast("Payment process cancelled by user.");
+              }
             }
-            closeModal();
-            completeOrder('Paid');
+          };
+
+          const rzp = new Razorpay(options);
+          rzp.on('payment.failed', function (resp) {
+            toast("Payment failed: " + resp.error.description);
           });
+          rzp.open();
+
         } catch (e) {
           console.error(e);
         }
@@ -604,80 +643,26 @@ function setupEvents() {
   }
 
   // --- Server-backed payment flow -------------------------------------------------
-  let serverPollHandle = null;
-
-  async function createPaymentOnServer(order) {
+  async function createRazorpayOrderOnServer(order) {
     try {
-      const resp = await fetch(API_BASE + '/api/create-payment', {
+      const resp = await fetch(API_BASE + '/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order),
       });
-      if (!resp.ok) throw new Error('Failed to create payment');
+      if (!resp.ok) {
+        const errorData = await resp.json();
+        throw new Error(errorData.error || 'Failed to create Razorpay order');
+      }
       return await resp.json();
     } catch (err) {
       console.error(err);
-      // Provide more actionable guidance when the local payment server is unreachable
       const msg = err && err.message && /ECONNREFUSED|Failed to fetch|connect ECONNREFUSED/i.test(err.message)
-        ? 'Unable to create payment: local payment server not running. Start it with `npm start` and try again.'
-        : 'Unable to create payment. Try again.';
+        ? 'Unable to create payment: local server not running. Start it with `npm start` and try again.'
+        : `Unable to create payment: ${err.message || 'Try again.'}`;
       toast(msg);
       throw err;
     }
-  }
-
-  function startServerQrSession(orderId, qrUrl, expiresAtMs) {
-    // Use returned QR URL and expiry timestamp from server
-    if (qrImgEl) {
-      qrImgEl.src = qrUrl;
-      qrImgEl.parentElement.classList.remove('expired');
-    }
-    if (qrTimerEl) qrTimerEl.classList.remove('timer-expired');
-
-    qrExpiresAt = expiresAtMs;
-    if (qrTimerHandle) clearInterval(qrTimerHandle);
-    function tick() {
-      const diff = Math.max(0, qrExpiresAt - Date.now());
-      const mins = Math.floor(diff / 60000).toString().padStart(2, '0');
-      const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-      if (qrTimerEl) qrTimerEl.textContent = `${mins}:${secs}`;
-      if (diff <= 0) {
-        clearInterval(qrTimerHandle);
-        qrTimerHandle = null;
-        if (qrImgEl) qrImgEl.parentElement.classList.add('expired');
-        if (qrTimerEl) qrTimerEl.classList.add('timer-expired');
-        stopPaymentPolling();
-        toast('QR expired. Please regenerate.');
-      }
-    }
-    tick();
-    qrTimerHandle = setInterval(tick, 1000);
-  }
-
-  function stopPaymentPolling() {
-    if (serverPollHandle) clearInterval(serverPollHandle);
-    serverPollHandle = null;
-  }
-
-  function startPaymentPolling(orderId, onSuccess) {
-    stopPaymentPolling();
-    serverPollHandle = setInterval(async () => {
-      try {
-        const resp = await fetch(`${API_BASE}/api/payment-status/${encodeURIComponent(orderId)}`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        if (data && data.status === 'Paid') {
-          stopPaymentPolling();
-          // fetch latest order from pendingOrder and mark paid
-          if (pendingOrder) {
-            pendingOrder.paymentStatus = 'Paid';
-          }
-          if (typeof onSuccess === 'function') onSuccess(data);
-        }
-      } catch (e) {
-        console.error('poll err', e);
-      }
-    }, 4500);
   }
 
   if (paymentBackdrop) paymentBackdrop.addEventListener('click', closeModal);

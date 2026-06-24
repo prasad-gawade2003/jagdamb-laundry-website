@@ -6,8 +6,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-// capture rawBody for webhook signature verification
-app.use(express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
+app.use(express.json());
 const path = require('path');
 
 // Serve frontend static files from project root so API and frontend share origin
@@ -16,143 +15,103 @@ app.use(express.static(path.join(__dirname)));
 const PORT = process.env.PORT || 3000;
 
 const crypto = require('crypto');
+const Razorpay = require('razorpay');
 
-// Decentro provider config (set via env)
-const DECENTRO_BASE_URL = process.env.DECENTRO_BASE_URL || '';
-const DECENTRO_API_KEY = process.env.DECENTRO_API_KEY || '';
-const DECENTRO_WEBHOOK_SECRET = process.env.DECENTRO_WEBHOOK_SECRET || '';
-const DECENTRO_WEBHOOK_HEADER = process.env.DECENTRO_WEBHOOK_HEADER || 'x-decentro-signature';
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`;
+// Razorpay config (set via env)
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
+});
 
 // In-memory store for payment sessions (replace with DB in production)
 const payments = {};
 
-function makeOrderId() {
-  return `ORD-${Date.now().toString().slice(-8)}`;
-}
-
-// Create payment: server generates a UPI link / dynamic QR and returns it
-app.post('/api/create-payment', (req, res) => {
-  (async () => {
+// Create Razorpay Order
+app.post('/api/create-order', async (req, res) => {
+  try {
     const order = req.body || {};
-    const orderId = order.id || makeOrderId();
-    const amount = Number(order.total || 0).toFixed(2);
-    let qrUrl = process.env.FALLBACK_QR || '/assets/QR.jpeg';
-    let expiresAt = Date.now() + 15 * 60 * 1000; // default 15 minutes
+    const totalAmount = Number(order.total || 0);
+    // Amount in paise (1 INR = 100 paise)
+    const amount = Math.round(totalAmount * 100);
 
-    // default payment session stored
-    payments[orderId] = {
-      id: orderId,
+    if (amount < 100) {
+      return res.status(400).json({ error: 'Minimum amount must be 100 paise (Rs 1.00)' });
+    }
+
+    const options = {
+      amount: amount,
+      currency: 'INR',
+      receipt: `rcpt_${Date.now().toString().slice(-8)}`,
+    };
+
+    const razorpayOrder = await razorpay.orders.create(options);
+
+    // Save payment details in-memory
+    payments[razorpayOrder.id] = {
+      id: razorpayOrder.id,
       order: order,
       status: 'Pending',
-      qrUrl,
-      expiresAt,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
       createdAt: Date.now(),
     };
 
-    // If Decentro config is present, call Decentro API to create a dynamic UPI collect/QR
-    if (DECENTRO_BASE_URL && DECENTRO_API_KEY) {
-      try {
-        const providerUrl = `${DECENTRO_BASE_URL.replace(/\/$/, '')}/v1/upi/collect`;
-        const callbackUrl = `${PUBLIC_BASE_URL}/api/webhook/payment`;
-        const providerPayload = {
-          amount: amount,
-          currency: 'INR',
-          merchant_order_id: orderId,
-          expires_in: 15 * 60, // seconds
-          callback_url: callbackUrl,
-          metadata: {
-            shop: process.env.SHOP_NAME || 'Merchant',
-            customerName: order.customerName || '',
-            customerPhone: order.phone || '',
-          },
-        };
-
-        const resp = await fetch(providerUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${DECENTRO_API_KEY}`,
-          },
-          body: JSON.stringify(providerPayload),
-        });
-
-        if (resp.ok) {
-          const j = await resp.json();
-          // provider may return different shapes; try common fields
-          if (j.qr_url) qrUrl = j.qr_url;
-          else if (j.qr_base64) qrUrl = `data:image/png;base64,${j.qr_base64}`;
-          else if (j.upi_uri) qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=${encodeURIComponent(j.upi_uri)}`;
-
-          if (j.expires_in) expiresAt = Date.now() + Number(j.expires_in) * 1000;
-          if (j.id) payments[orderId].providerId = j.id;
-          if (j.status) payments[orderId].status = j.status;
-          payments[orderId].qrUrl = qrUrl;
-          payments[orderId].expiresAt = expiresAt;
-        } else {
-          console.warn('Decentro create-payment failed', resp.status);
-        }
-      } catch (err) {
-        console.error('Error calling Decentro provider', err);
-      }
-    }
-
-    res.json({ orderId, qrUrl, expiresAt });
-  })();
-});
-
-// Polling endpoint for frontend to check payment status
-app.get('/api/payment-status/:orderId', (req, res) => {
-  const { orderId } = req.params;
-  const session = payments[orderId];
-  if (!session) return res.status(404).json({ error: 'Not found' });
-  // If expired, mark expired
-  if (session.expiresAt && Date.now() > session.expiresAt && session.status === 'Pending') {
-    session.status = 'Expired';
-  }
-  res.json({ orderId: session.id, status: session.status });
-});
-
-// Webhook endpoint that provider will call to notify payment status
-app.post('/api/webhook/payment', (req, res) => {
-  // Verify webhook signature if secret and header configured
-  try {
-    const headerName = DECENTRO_WEBHOOK_HEADER.toLowerCase();
-    const sig = req.headers[headerName];
-    if (DECENTRO_WEBHOOK_SECRET) {
-      if (!sig) {
-        console.warn('Webhook missing signature header');
-        return res.status(400).json({ error: 'signature missing' });
-      }
-      const computed = crypto.createHmac('sha256', DECENTRO_WEBHOOK_SECRET).update(req.rawBody || '').digest('hex');
-      if (computed !== sig && computed !== sig.replace(/^sha256=/, '')) {
-        console.warn('Webhook signature mismatch', { computed, sig });
-        return res.status(401).json({ error: 'invalid signature' });
-      }
-    }
-
-    const { orderId, status } = req.body || {};
-    if (!orderId) return res.status(400).json({ error: 'orderId required' });
-    const session = payments[orderId];
-    if (!session) return res.status(404).json({ error: 'Unknown orderId' });
-    session.status = status || 'Paid';
-    console.log('Webhook updated', orderId, session.status);
-    res.json({ ok: true });
+    res.json({
+      order_id: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
   } catch (err) {
-    console.error('Webhook handling error', err);
-    res.status(500).json({ error: 'internal' });
+    console.error('Error creating Razorpay order:', err);
+    if (err.statusCode === 401) {
+      return res.status(401).json({ error: 'Razorpay authentication failed' });
+    }
+    res.status(500).json({ error: 'Failed to create Razorpay order' });
   }
 });
 
-// Testing helper: simulate provider callback
-app.post('/api/simulate-provider/:orderId', (req, res) => {
-  const { orderId } = req.params;
-  const session = payments[orderId];
-  if (!session) return res.status(404).json({ error: 'Unknown orderId' });
-  session.status = 'Paid';
-  res.json({ ok: true, orderId });
+// Verify Razorpay Payment Signature
+app.post('/api/verify-payment', (req, res) => {
+  try {
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing required payment verification fields' });
+    }
+
+    const generated_signature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .update(razorpay_order_id + '|' + razorpay_payment_id)
+      .digest('hex');
+
+    if (generated_signature === razorpay_signature) {
+      if (payments[razorpay_order_id]) {
+        payments[razorpay_order_id].status = 'Paid';
+        payments[razorpay_order_id].paymentId = razorpay_payment_id;
+      } else {
+        payments[razorpay_order_id] = {
+          id: razorpay_order_id,
+          status: 'Paid',
+          paymentId: razorpay_payment_id,
+          createdAt: Date.now()
+        };
+      }
+      res.json({ status: 'Paid', message: 'Payment verified successfully' });
+    } else {
+      console.warn('Signature mismatch for order:', razorpay_order_id);
+      res.status(400).json({ error: 'Invalid payment signature' });
+    }
+  } catch (err) {
+    console.error('Error verifying payment:', err);
+    res.status(500).json({ error: 'Internal server error during verification' });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Payment mock server listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Payment mock server listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
