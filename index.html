@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Jagdamb Laundry & Drycleaners offers doorstep laundry, dry cleaning, ironing, pickup, online payment and WhatsApp order confirmation."
+    />
+    <title>Jagdamb Laundry & Drycleaners| Doorstep Pickup & Delivery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="Jagdamb Laundry home">
+        <img class="brand-mark" src="assets/jagdamblogo.png" alt="Jagdamb Laundry logo" />
+      </a>
+      <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#services">Services</a>
+        <a href="#order">Order</a>
+        <a href="#contact">Contact</a>
+        <a class="nav-whatsapp" id="quickWhatsApp" href="#" target="_blank" rel="noreferrer">WhatsApp</a>
+      </nav>
+    </header>
+
+    <main id="home">
+      <section class="hero">
+        <div class="bg-bubbles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow">Doorstep pickup in your area</p>
+          <h1>Fresh clothes, fast pickup, clean delivery.</h1>
+          <p class="hero-text">
+            Book wash, Fold, iron, dry cleaning and premium garment care from home. Share your pickup
+            location, pay online, and get your receipt instantly.
+          </p>
+          <div class="hero-actions">
+            <a class="btn primary" href="#order">Book Pickup</a>
+          </div>
+          <div class="trust-row" aria-label="Service highlights">
+            <span>Free pickup & Drop</span>
+            <span>Same-day pickup</span>
+            <span>Online payment</span>
+            <span>Live WhatsApp order</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="Laundry delivery illustration">
+          <div class="washer-card">
+            <div class="washer-top"></div>
+            <div class="washer-door">
+              <div class="water-swirl">
+                <span class="cloth red"></span>
+                <span class="cloth yellow"></span>
+                <span class="cloth blue"></span>
+              </div>
+            </div>
+            <div class="washer-feet"><span></span><span></span></div>
+          </div>
+          <div class="floating-ticket">
+            <img class="offer-badge" src="assets/offer.png" alt="Current offer: Wash + Iron" />
+          </div>
+          <div class="soap-bubble s1"></div>
+          <div class="soap-bubble s2"></div>
+          <div class="soap-bubble s3"></div>
+          <div class="soap-bubble s4"></div>
+          <div class="bubble b1"></div>
+          <div class="bubble b2"></div>
+          <div class="bubble b3"></div>
+        </div>
+      </section>
+
+      <section class="section strip">
+        <div class="reviews-marquee" aria-label="Customer feedback">
+          <div class="marquee-viewport">
+            <div class="marquee-track" id="reviewTrack" aria-hidden="false">
+              <!-- Reviews are injected by script.js -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="services">
+        <div class="section-head">
+          <p class="eyebrow">Services</p>
+          <h2>Everything your laundry shop needs online</h2>
+        </div>
+        <div class="service-grid" id="serviceGrid"></div>
+      </section>
+
+      <!-- Pricing section removed as requested -->
+
+      <section class="section">
+        <div class="section-head">
+          <p class="eyebrow">How it works</p>
+          <h2>Book in four easy steps</h2>
+        </div>
+        <div class="steps">
+          <article><b>1</b><h3>Choose items</h3><p>Select clothes and quantities.</p></article>
+          <article><b>2</b><h3>Share location</h3><p>Enter address or use current location.</p></article>
+          <article><b>3</b><h3>Pay online</h3><p>Use demo payment or choose cash on delivery.</p></article>
+          <article><b>4</b><h3>Get receipt</h3><p>Receipt is ready after successful booking.</p></article>
+        </div>
+        <div class="delivery-line" aria-hidden="true">
+          <span class="delivery-dot"></span>
+        </div>
+      </section>
+
+      <section class="section order-section" id="order">
+        <div class="laundry-drop-scene" aria-hidden="true">
+          <img class="falling-cloth shirt" src="assets/clothes/shirt.png" alt="" />
+          <img class="falling-cloth pants" src="assets/clothes/pants.png" alt="" />
+          <div class="laundry-bucket">
+            <img class="bucket-pile" src="assets/clothes-pile.png" alt="" />
+            <img src="assets/basket.png" alt="" />
+          </div>
+        </div>
+        <div class="section-head">
+          <p class="eyebrow">Order now</p>
+          <h2>Book pickup and send details on WhatsApp</h2>
+        </div>
+        <div class="order-layout">
+          <form class="order-form" id="orderForm">
+            <div class="form-grid">
+              <label>
+                Full name
+                <input id="customerName" name="customerName" type="text" placeholder="Your name" required />
+              </label>
+              <label>
+                Phone number
+                <input id="phone" name="phone" type="tel" placeholder="9876543210" required />
+              </label>
+              <label>
+                Pickup date
+                <input id="pickupDate" name="pickupDate" type="date" required />
+              </label>
+              <label>
+                Time slot
+                <select id="timeSlot" name="timeSlot" required>
+                  <option value="">Select slot</option>
+                  <option>09:00 AM - 11:00 AM</option>
+                  <option>11:00 AM - 01:00 PM</option>
+                  <option>02:00 PM - 04:00 PM</option>
+                  <option>05:00 PM - 08:00 PM</option>
+                </select>
+              </label>
+              <label>
+                Payment method
+                <select id="paymentMethod" name="paymentMethod" required>
+                  <option>Online Payment</option>
+                  <option>Cash on Delivery</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Pickup address
+              <textarea id="address" name="address" rows="3" placeholder="House no, street, area, city" required></textarea>
+            </label>
+            <div class="location-row">
+              <button class="btn outline" type="button" id="useLocation">Use My Current Location</button>
+              <span id="locationStatus">Location not added</span>
+            </div>
+            <div class="item-picker">
+              <label>
+                Laundry item
+                <select id="itemSelect"></select>
+              </label>
+              <label>
+                Qty
+                <input id="itemQty" type="number" min="1" value="1" />
+              </label>
+              <button class="btn primary" type="button" id="addItem">Add to Order</button>
+            </div>
+            <div class="form-actions">
+              <button class="btn primary" type="submit">Book & Pay</button>
+              <button class="btn whatsapp" type="button" id="sendWhatsApp">Send Order on WhatsApp</button>
+            </div>
+            <p class="form-note">
+              QR payment receipt appears only after payment confirmation.
+            </p>
+          </form>
+
+          <aside class="summary-panel">
+            <h3>Order Summary</h3>
+            <div id="summaryItems" class="summary-items"></div>
+            <div class="summary-line"><span>Pickup charge</span><strong id="pickupCharge">Rs 49</strong></div>
+            <div class="summary-line total"><span>Total</span><strong id="grandTotal">Rs 49</strong></div>
+            <div class="summary-meta" id="summaryMeta">Add customer details to prepare order.</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section muted payment-section" id="paymentSection" hidden>
+        <div class="payment-card">
+          <div>
+            <p class="eyebrow">Payment</p>
+            <h2>Scan QR to pay</h2>
+            <p class="payment-copy">
+              Customer can scan your shop QR, complete payment, then confirm payment here to get the receipt.
+            </p>
+            <div class="payment-total">
+              <span>Amount to pay</span>
+              <strong id="paymentAmount">Rs 0</strong>
+            </div>
+            <div class="form-actions">
+              <button class="btn primary" id="confirmPayment" type="button">I Have Paid</button>
+              <button class="btn whatsapp" id="paymentWhatsApp" type="button">Send Payment Details</button>
+            </div>
+          </div>
+          <div class="qr-panel">
+            <img class="qr-image" src="assets/QR.jpeg" alt="Shop UPI QR code" />
+            <strong>Your UPI QR</strong>
+            <p>Scan this QR with your UPI app to complete payment.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section muted receipt-section" id="receiptSection" hidden>
+        <div class="receipt-card" id="receipt">
+          <div class="receipt-head">
+            <div>
+              <strong>Jagdamb Laundry & Drycleaners</strong>
+              <span>Payment Receipt</span>
+            </div>
+            <b id="receiptStatus">Paid</b>
+          </div>
+          <div id="receiptBody"></div>
+        </div>
+        <div class="receipt-actions">
+          <button class="btn primary" id="printReceipt" type="button">Download Receipt</button>
+          <button class="btn whatsapp" id="receiptWhatsApp" type="button">Send Receipt on WhatsApp</button>
+        </div>
+      </section>
+
+      <section class="section contact" id="contact">
+        <div>
+          <p class="eyebrow">Contact</p>
+          <h2>Jagdamb Laundry & Drycleaners</h2>
+          <p>📍Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048 </p>
+          <p>📍Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048 </p>
+          <p><strong>Phone:</strong> +91 98216 75395</p>
+          <p><strong>Email:</strong> jagdambalaundry1@gmail.com</p>
+          <p><strong>Hours:</strong> 8:00 AM - 9:00 PM</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="tel:+919821675395">Call Now</a>
+            <a class="btn whatsapp" id="contactWhatsApp" href="#" target="_blank" rel="noreferrer">WhatsApp Us</a>
+          </div>
+        </div>
+        <div class="map-box" aria-label="Pune map">
+          <iframe
+            title="Jagdamb Laundry - Sai Nagar map"
+            src="https://www.google.com/maps?q=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            style="border:0; width:100%; height:360px;"
+          ></iframe>
+          <div class="map-actions">
+            <a href="https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048" target="_blank" rel="noopener noreferrer">Open highlighted location in Google Maps</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <strong>Jagdamb Laundry & Drycleaners</strong>
+      <span>Wash, Fold, iron, dry cleaning and Quick doorstep pickup.</span>
+      <small>Copyright 2026 Jagdamb Laundry & Drycleaners. All rights reserved.</small>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- Floating social action buttons (vertical stack, bottom-right) -->
+    <div class="floating-actions" aria-hidden="false">
+      <a id="floatWhatsApp" class="float-btn whatsapp" href="#" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M20.52 3.48A11.89 11.89 0 0012 0C5.373 0 .07 5.303.07 11.93c0 2.098.55 4.158 1.6 5.97L0 24l6.34-1.66a11.9 11.9 0 005.66 1.47c6.627 0 11.93-5.303 11.93-11.93 0-3.18-1.24-6.17-3.41-8.36z" fill="#25D366"/>
+          <path d="M17.28 14.04c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.95 1.18-.17.2-.34.22-.64.07-.3-.15-1.27-.47-2.42-1.48-.9-.8-1.5-1.8-1.67-2.1-.17-.3-.02-.46.13-.61.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2 0-.38-.02-.53-.02-.15-.67-1.6-.92-2.19-.24-.57-.49-.49-.67-.5-.17-.01-.36-.01-.55-.01-.2 0-.52.07-.8.38-.27.31-1.03 1.01-1.03 2.47 0 1.46 1.05 2.88 1.2 3.08.15.2 2.07 3.33 5.02 4.66 2.95 1.33 2.95.89 3.49.83.54-.06 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z" fill="#fff"/>
+        </svg>
+      </a>
+      <a id="floatInsta" class="float-btn instagram" href="https://www.instagram.com/jagdamb.laundry?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" aria-label="Instagram profile">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5zm5 5.9a4.1 4.1 0 100 8.2 4.1 4.1 0 000-8.2zM18.5 6.2a1.2 1.2 0 11-2.4 0 1.2 1.2 0 012.4 0z" fill="#fff"/>
+        </svg>
+      </a>
+    </div>
+    
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="paymentBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="paymentTitle">
+        <button class="modal-close" id="paymentClose" aria-label="Close payment dialog">×</button>
+        <h3 id="paymentTitle">Payment Options</h3>
+        <div class="payment-tabs">
+          <button class="tab active" data-tab="upi">UPI App</button>
+          <button class="tab" data-tab="qr">QR Code (15 min)</button>
+        </div>
+        <div class="payment-body">
+          <div class="tab-panel" data-panel="upi">
+            <p>Pay using any UPI app. This will open the UPI app on mobile with the amount and UPI ID prefilled.</p>
+            <div class="payment-amount">Amount: <strong id="modalAmount">Rs 0</strong></div>
+            <div class="form-actions">
+              <a id="upiPayBtn" class="btn primary" href="#" target="_blank" rel="noopener">Pay with UPI App</a>
+              <button id="upiFallback" class="btn soft" type="button">Open QR Instead</button>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="qr" hidden>
+            <p>Scan this QR with any UPI app. The QR expires in <span id="qrTimer">15:00</span>.</p>
+            <div class="qr-large" id="qrLarge">
+              <img id="qrImg" src="assets/QR.jpeg" alt="Payment QR" />
+            </div>
+            <div class="form-actions">
+              <button id="confirmPaymentModal" class="btn primary" type="button">I Have Paid</button>
+              <button id="regenerateQr" class="btn soft" type="button">Regenerate QR</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
