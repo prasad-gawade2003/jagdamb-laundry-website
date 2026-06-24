@@ -18,10 +18,15 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 
 // Razorpay config (set via env)
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
-});
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+} else {
+  console.warn('WARNING: Razorpay credentials missing. Checkout will fail until configured.');
+}
 
 // In-memory store for payment sessions (replace with DB in production)
 const payments = {};
@@ -29,6 +34,10 @@ const payments = {};
 // Create Razorpay Order
 app.post('/api/create-order', async (req, res) => {
   try {
+    if (!razorpay) {
+      return res.status(500).json({ error: 'Razorpay keys are not configured on the server. Please add them to your Vercel Project Environment Variables.' });
+    }
+
     const order = req.body || {};
     const totalAmount = Number(order.total || 0);
     // Amount in paise (1 INR = 100 paise)
