@@ -746,6 +746,11 @@ function setupEvents() {
     floatIG.href = 'https://www.instagram.com/jagdamb.laundry?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==';
   }
 
+  const floatFB = byId('floatFB');
+  if (floatFB) {
+    floatFB.href = 'https://www.facebook.com/profile.php?id=61591488686870';
+  }
+
   // Payment modal wiring
   const paymentModal = byId('paymentModal');
   const paymentBackdrop = byId('paymentBackdrop');

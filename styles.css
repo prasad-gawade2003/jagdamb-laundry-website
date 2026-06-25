@@ -1537,6 +1537,10 @@ textarea:focus {
   background: radial-gradient(circle at 30% 30%, #fdf497 0%, #fdf497 5%, #f09433 30%, #e6683c 50%, #cc2366 70%, #bc1888 100%);
 }
 
+.float-btn.facebook {
+  background: #1877F2;
+}
+
 @media (max-width: 980px) {
 
   .hero,
