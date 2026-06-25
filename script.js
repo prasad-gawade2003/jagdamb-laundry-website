@@ -15,13 +15,130 @@ const shop = {
 };
 
 const services = [
-  { icon: "W", name: "Wash & Fold", desc: "Daily wear cleaned, folded and packed.", price: 1, unit: "/kg" },
-  { icon: "I", name: "Wash & Iron", desc: "Fresh wash with crisp ironing.", price: 90, unit: "/kg" },
-  { icon: "D", name: "Dry Cleaning", desc: "Premium care for suits, sarees and delicate clothes.", price: 60 },
-  { icon: "S", name: "Saree Ironing", desc: "Sharp finish for office and occasion wear.", price: 60 },
-  { icon: "B", name: "Bedsheet Cleaning", desc: "Bedsheets, covers and blankets handled with care.", price: 100 },
-  { icon: "P", name: "Shoes Cleaning", desc: "Special handling for designer garments.", price: 200 },
-  { icon: "C", name: "Curtain Cleaning", desc: "Deep cleaning for home curtains.", price: 100 },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="12" r="3" fill="#a5f3fc" />
+      <circle cx="56" cy="18" r="2" fill="#bae6fd" />
+      <circle cx="44" cy="20" r="1.5" fill="#a5f3fc" />
+      <rect x="14" y="16" width="36" height="42" rx="4" fill="#e0f2fe" stroke="#1e293b" stroke-width="2.5" />
+      <rect x="18" y="20" width="12" height="6" rx="1" fill="#bae6fd" stroke="#1e293b" stroke-width="2" />
+      <circle cx="42" cy="23" r="2.5" fill="#fbcfe8" stroke="#1e293b" stroke-width="2" />
+      <circle cx="32" cy="42" r="12" fill="#bae6fd" stroke="#1e293b" stroke-width="2.5" />
+      <circle cx="32" cy="42" r="8.5" fill="#a5f3fc" />
+      <path d="M25 43c2 2 4 0 6-1s4-3 7-1" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+      <path d="M26 46c2 1 3 0 5-1s3-2 5-1" stroke="#0284c7" stroke-width="1.5" stroke-linecap="round" />
+    </svg>`,
+    name: "Wash & Fold",
+    desc: "Daily wear cleaned, folded and packed.",
+    price: 1,
+    unit: "/kg"
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 24h24v30H12V24z" fill="#ccfbf1" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M18 24l6 8 8-8" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M30 24l-6 8-8-8" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="24" cy="38" r="1.5" fill="#1e293b" />
+      <circle cx="24" cy="46" r="1.5" fill="#1e293b" />
+      <path d="M28 48h22l2-6c-1-10-8-12-14-12H28v18z" fill="#fbcfe8" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M32 30v-4c0-2 2-3 4-3h8c2 0 4 1 4 3v4" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M54 36h4" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" />
+      <path d="M53 42h5" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" />
+    </svg>`,
+    name: "Wash & Iron",
+    desc: "Fresh wash with crisp ironing.",
+    price: 90,
+    unit: "/kg"
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M52 14l1.5 2.5 2.5 1.5-2.5 1.5-1.5 2.5-1.5-2.5-2.5-1.5 2.5-1.5L52 14z" fill="#facc15" />
+      <path d="M12 36l1 1.5 1.5 1-1.5 1-1 1.5-1-1.5-1.5-1 1.5-1 1-1.5z" fill="#facc15" />
+      <path d="M32 20c0-4 3-5 5-3a3 3 0 01-2 5" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" />
+      <path d="M22 24l10-4 10 4" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M18 25l6 5v24h16V30l6-5c-2 8-1 25-1 29H19c0-4 1-21-1-29z" fill="#dbeafe" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M24 25l4 10h8l4-10" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M30 25l2 6 2-6-2-2-2 2z" fill="#fbcfe8" stroke="#1e293b" stroke-width="2" />
+    </svg>`,
+    name: "Dry Cleaning",
+    desc: "Premium care for suits, sarees and delicate clothes.",
+    price: 60
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M48 10l1 1.5 1.5 1-1.5 1-1 1.5-1-1.5-1.5-1 1.5-1 1-1.5z" fill="#facc15" />
+      <path d="M32 16c0-3 2-4 4-3a2 2 0 01-1 4" stroke="#1e293b" stroke-width="2" stroke-linecap="round" />
+      <path d="M20 20l12-4 12 4" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M20 20v28c0 4 4 6 12 6s12-2 12-6V20H20z" fill="#ffe4e6" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M24 20v33M28 20v34M40 20v33" stroke="#facc15" stroke-width="2.5" stroke-linecap="round" />
+      <path d="M20 44h24" stroke="#1e293b" stroke-width="2" stroke-dasharray="3 3" />
+      <path d="M20 48h24" stroke="#1e293b" stroke-width="2" stroke-dasharray="3 3" />
+    </svg>`,
+    name: "Saree Ironing",
+    desc: "Sharp finish for office and occasion wear.",
+    price: 60
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="28" cy="20" r="1.5" fill="#38bdf8" />
+      <circle cx="34" cy="16" r="2" fill="#38bdf8" />
+      <circle cx="38" cy="22" r="1.5" fill="#38bdf8" />
+      <path d="M12 28h24v26H12V28z" fill="#e0f2fe" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M18 28l6 8 8-8" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M30 28l-6 8-8-8" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="24" cy="40" r="1.5" fill="#1e293b" />
+      <circle cx="24" cy="48" r="1.5" fill="#1e293b" />
+      <path d="M42 32h10l-2 18H44l-2-18z" fill="#fbcfe8" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M44 32v-4h6v4M42 26h10" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M44 28l-4 4" stroke="#1e293b" stroke-width="2" stroke-linecap="round" />
+      <path d="M14 14l1 1.5 1.5 1-1.5 1-1 1.5-1-1.5-1.5-1 1.5-1 1-1.5z" fill="#facc15" />
+    </svg>`,
+    name: "Starching",
+    desc: "Starching your clothes adds crispness and structure.",
+    price: 60
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="18" r="3.5" fill="#a5f3fc" />
+      <circle cx="48" cy="16" r="2.5" fill="#bae6fd" />
+      <path d="M12 10l1.5 2.5 2.5 1.5-2.5 1.5-1.5 2.5-1.5-2.5-2.5-1.5 2.5-1.5L12 10z" fill="#facc15" />
+      <rect x="12" y="44" width="40" height="10" rx="3" fill="#ffe4e6" stroke="#1e293b" stroke-width="2.5" />
+      <rect x="14" y="34" width="36" height="10" rx="3" fill="#e0f2fe" stroke="#1e293b" stroke-width="2.5" />
+      <rect x="16" y="24" width="32" height="10" rx="3" fill="#ccfbf1" stroke="#1e293b" stroke-width="2.5" />
+      <path d="M48 29c-1 0-2 1-2 2h4c0-1-1-2-2-2zM46 39c-1 0-2 1-2 2h4c0-1-1-2-2-2z" fill="#1e293b" />
+    </svg>`,
+    name: "Bedsheet Cleaning",
+    desc: "Bedsheets, covers and blankets handled with care.",
+    price: 100
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M46 14l1.5 2.5 2.5 1.5-2.5 1.5-1.5 2.5-1.5-2.5-2.5-1.5 2.5-1.5L46 14z" fill="#facc15" />
+      <path d="M14 22l1 1.5 1.5 1-1.5 1-1 1.5-1-1.5-1.5-1 1.5-1 1-1.5z" fill="#facc15" />
+      <path d="M16 48h22l2-8c-1-6-6-8-12-8H20l-4 8v8z" fill="#e0f2fe" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" opacity="0.7" />
+      <path d="M22 52h24l2-8c-1-6-6-8-12-8H26l-4 8v8z" fill="#ccfbf1" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M22 52h26v3.5a1.5 1.5 0 01-1.5 1.5H22v-5z" fill="#fbcfe8" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M34 38l4 4M36 36l4 4" stroke="#1e293b" stroke-width="2" stroke-linecap="round" />
+    </svg>`,
+    name: "Shoes Cleaning",
+    desc: "Special handling for designer garments.",
+    price: 200
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="18" r="2.5" fill="#a5f3fc" />
+      <circle cx="14" cy="40" r="3.5" fill="#bae6fd" />
+      <rect x="8" y="14" width="48" height="4" rx="2" fill="#bae6fd" stroke="#1e293b" stroke-width="2.5" />
+      <circle cx="7" cy="16" r="3.5" fill="#facc15" stroke="#1e293b" stroke-width="2" />
+      <circle cx="57" cy="16" r="3.5" fill="#facc15" stroke="#1e293b" stroke-width="2" />
+      <path d="M12 18v32c4-2 8-2 10-6V18H12z" fill="#ccfbf1" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M42 18v28c2 4 6 4 10 6V18H42z" fill="#ccfbf1" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M12 34c2 0 6 1 10 1M42 34c4 0 8-1 10-1" stroke="#facc15" stroke-width="2" stroke-linecap="round" />
+    </svg>`,
+    name: "Curtain Cleaning",
+    desc: "Deep cleaning for home curtains.",
+    price: 100
+  }
 ];
 
 const priceItems = [];
@@ -618,6 +735,12 @@ function setupEvents() {
   });
 
   // Set floating button links (WhatsApp uses the shop link builder)
+  const floatCall = byId('floatCall');
+  if (floatCall) {
+    const cleanPhone = shop.phone.replace(/[\s()]/g, '');
+    floatCall.href = `tel:${cleanPhone}`;
+  }
+
   const floatWA = byId('floatWhatsApp');
   if (floatWA) {
     floatWA.href = buildWhatsAppPhoneLink(shop.inquiryPhone, shop.inquiryMessage || quickMessage());
@@ -791,6 +914,62 @@ function setupEvents() {
     // also call original behaviour to keep paymentSection visible as fallback
     origShowPayment(order);
   };
+
+  // --- Order History Modal Wiring ---
+  const ordersModal = byId('ordersModal');
+  const ordersBackdrop = byId('ordersBackdrop');
+  const ordersClose = byId('ordersClose');
+  const clearHistoryBtn = byId('clearHistoryBtn');
+
+  function openOrdersModal() {
+    if (ordersModal) {
+      ordersModal.setAttribute('aria-hidden', 'false');
+      loadOrders();
+    }
+  }
+
+  function closeOrdersModal() {
+    if (ordersModal) {
+      ordersModal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  const navOrders = byId('navOrders');
+  if (navOrders) {
+    navOrders.addEventListener('click', (e) => {
+      e.preventDefault();
+      openOrdersModal();
+    });
+  }
+
+  if (ordersBackdrop) ordersBackdrop.addEventListener('click', closeOrdersModal);
+  if (ordersClose) ordersClose.addEventListener('click', closeOrdersModal);
+
+  const clearHistoryConfirmGroup = byId('clearHistoryConfirmGroup');
+  const clearHistoryConfirmBtn = byId('clearHistoryConfirmBtn');
+  const clearHistoryCancelBtn = byId('clearHistoryCancelBtn');
+
+  if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener('click', () => {
+      clearHistoryBtn.style.display = 'none';
+      if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.style.display = 'flex';
+    });
+  }
+
+  if (clearHistoryCancelBtn) {
+    clearHistoryCancelBtn.addEventListener('click', () => {
+      if (clearHistoryConfirmGroup) clearHistoryConfirmGroup.style.display = 'none';
+      clearHistoryBtn.style.display = 'block';
+    });
+  }
+
+  if (clearHistoryConfirmBtn) {
+    clearHistoryConfirmBtn.addEventListener('click', () => {
+      localStorage.removeItem('jld_order_history');
+      toast("Order history cleared.");
+      loadOrders();
+    });
+  }
 }
 
 function setMinDate() {
@@ -818,3 +997,177 @@ function loadSavedCustomerDetails() {
 }
 
 loadSavedCustomerDetails();
+
+// --- Order History Modal Flow ----------------------------------------------------
+function loadOrders() {
+  const container = byId('ordersContainer');
+  const clearBtn = byId('clearHistoryBtn');
+  const confirmGroup = byId('clearHistoryConfirmGroup');
+  if (!container) return;
+  if (confirmGroup) confirmGroup.style.display = 'none';
+  let history = [];
+
+  try {
+    const raw = localStorage.getItem('jld_order_history');
+    if (raw) history = JSON.parse(raw);
+  } catch (e) {
+    console.error("Error reading order history:", e);
+  }
+
+  // Sort orders newest first
+  history.reverse();
+
+  if (history.length === 0) {
+    if (clearBtn) clearBtn.style.display = 'none';
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>You haven't placed any orders yet.</p>
+        <a class="btn primary" href="#order" id="bookFirstPickupBtn">Book Your First Pickup</a>
+      </div>
+    `;
+    const bookBtn = byId('bookFirstPickupBtn');
+    if (bookBtn) {
+      bookBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const ordersModal = byId('ordersModal');
+        if (ordersModal) ordersModal.setAttribute('aria-hidden', 'true');
+        const orderSection = byId('order');
+        if (orderSection) {
+          orderSection.scrollIntoView({ behavior: 'smooth' });
+          setTimeout(playLaundryDrop, 260);
+        }
+      });
+    }
+    return;
+  }
+
+  if (clearBtn) clearBtn.style.display = 'block';
+
+  container.innerHTML = history.map((order, idx) => {
+    const mapLink = order.location
+      ? `<a href="${order.location.mapUrl}" target="_blank" rel="noreferrer">Open maps</a>`
+      : "Manual address only";
+
+    const itemsHtml = order.items && order.items.length
+      ? `
+        <div class="history-item-list">
+          <div class="history-item-list-title">Items:</div>
+          ${order.items.map(item => `
+            <div class="receipt-row" style="margin: 4px 0; font-size: 0.9rem;">
+              <span>${item.item} - ${item.service} x ${item.qty}</span>
+              <strong>${currency(item.price * item.qty)}</strong>
+            </div>
+          `).join('')}
+        </div>
+      `
+      : '';
+
+    return `
+      <div class="order-history-card">
+        <div class="receipt-head" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Order #${order.id}</strong>
+            <span style="display: block; font-size: 0.8rem; color: var(--muted); margin-top: 4px;">
+              Booked on ${new Date(order.createdAt || Date.now()).toLocaleDateString()}
+            </span>
+          </div>
+          <b class="receipt-status" style="background: var(--soft); color: var(--blue); padding: 4px 8px; border-radius: 6px; font-size: 0.9rem;">
+            ${order.paymentStatus}
+          </b>
+        </div>
+
+        <div class="receipt-row"><span>Customer</span><strong>${order.customerName}</strong></div>
+        <div class="receipt-row"><span>Phone</span><strong>${order.phone}</strong></div>
+        <div class="receipt-row"><span>Pickup Details</span><strong>${order.pickupDate}, ${order.timeSlot}</strong></div>
+        <div class="receipt-row"><span>Address</span><strong>${order.address}</strong></div>
+        <div class="receipt-row"><span>Location</span><strong>${mapLink}</strong></div>
+
+        ${itemsHtml}
+
+        <div class="receipt-row" style="margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px;">
+          <span>Pickup charge</span>
+          <strong>${currency(order.pickup)}</strong>
+        </div>
+        <div class="receipt-row">
+          <span>Total Amount</span>
+          <strong style="color: var(--blue); font-size: 1.1rem;">${currency(order.total)}</strong>
+        </div>
+        <div class="receipt-row"><span>Payment Method</span><strong>${order.paymentMethod}</strong></div>
+
+        <div class="history-actions-row">
+          <button class="btn whatsapp" onclick="shareOrder(${idx})">Share on WhatsApp</button>
+          <button class="btn outline" onclick="downloadOrderPDF(${idx})">Download PDF</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  window.loadedHistory = history;
+}
+
+window.shareOrder = function (renderIdx) {
+  const order = window.loadedHistory[renderIdx];
+  if (!order) return;
+  const msg = formatOrderForWhatsApp(order);
+  window.open(buildWhatsAppPhoneLink(shop.inquiryPhone, msg), "_blank", "noopener,noreferrer");
+};
+
+window.downloadOrderPDF = function (renderIdx) {
+  const order = window.loadedHistory[renderIdx];
+  if (!order) return;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.className = 'receipt-card';
+  tempDiv.style.padding = '24px';
+  tempDiv.style.background = '#ffffff';
+  tempDiv.style.color = '#0f172a';
+  tempDiv.style.fontFamily = 'Inter, sans-serif';
+  tempDiv.style.width = '600px';
+
+  tempDiv.innerHTML = `
+    <div class="receipt-head" style="display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
+      <div>
+        <strong style="font-size: 1.2rem; color: #0f172a; font-family: Inter, sans-serif;">${shop.name}</strong>
+        <span style="display: block; font-size: 0.8rem; color: #64748b; font-family: Inter, sans-serif;">Payment Receipt</span>
+      </div>
+      <b style="color: #2563eb; font-size: 1.2rem; font-family: Inter, sans-serif;">${order.paymentStatus}</b>
+    </div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Order ID</span><strong style="color:#0f172a;">${order.id}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Customer</span><strong style="color:#0f172a;">${order.customerName}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Phone</span><strong style="color:#0f172a;">${order.phone}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Pickup</span><strong style="color:#0f172a;">${order.pickupDate}, ${order.timeSlot}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Address</span><strong style="color:#0f172a;">${order.address}</strong></div>
+
+    <div style="background: #eef9ff; border-radius: 8px; padding: 12px; margin: 16px 0; font-family: Inter, sans-serif;">
+      <strong style="display: block; margin-bottom: 8px; color: #0f172a;">Items:</strong>
+      ${order.items.map(item => `
+        <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 0.9rem;">
+          <span>${item.item} - ${item.service} x ${item.qty}</span>
+          <strong style="color:#0f172a;">${currency(item.price * item.qty)}</strong>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; border-top: 1px dashed #dbe5f0; padding-top: 8px; font-family: Inter, sans-serif;"><span>Pickup charge</span><strong style="color:#0f172a;">${currency(order.pickup)}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Total</span><strong style="color:#0f172a;">${currency(order.total)}</strong></div>
+    <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Payment method</span><strong style="color:#0f172a;">${order.paymentMethod}</strong></div>
+    <p style="text-align: center; color: #64748b; margin-top: 24px; font-size: 0.9rem; font-family: Inter, sans-serif;">Thank you for choosing ${shop.name}.</p>
+  `;
+
+  document.body.appendChild(tempDiv);
+
+  const opt = {
+    margin: 10,
+    filename: `Jagdamablaundryrecepit${order.id}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(tempDiv).save().then(() => {
+    document.body.removeChild(tempDiv);
+  }).catch(err => {
+    console.error("PDF download error:", err);
+    document.body.removeChild(tempDiv);
+  });
+};
