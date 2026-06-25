@@ -1074,9 +1074,8 @@ h3 {
 }
 
 .laundry-drop-scene {
-  position: absolute;
-  top: 28px;
-  right: clamp(18px, 5vw, 72px);
+  position: relative;
+  margin: 28px auto 0;
   z-index: 2;
   width: 260px;
   height: 190px;
@@ -1612,7 +1611,7 @@ textarea:focus {
     right: auto;
     width: 210px;
     height: 142px;
-    margin: -18px 0 14px auto;
+    margin: 20px auto 10px;
   }
 
   .laundry-bucket {
