@@ -26,6 +26,7 @@
       </button>
       <nav class="nav-links" aria-label="Primary navigation">
         <a href="#services">Services</a>
+        <a href="#stores">Stores</a>
         <a href="#order">Book Pickup</a>
         <a href="#contact">Contact</a>
         <a href="#" id="navOrders">Orders</a>
@@ -116,6 +117,16 @@
         </div>
       </section>
 
+      <section class="section" id="stores">
+        <div class="section-head">
+          <p class="eyebrow">Our Locations</p>
+          <h2>Choose a store near you</h2>
+        </div>
+        <div class="stores-grid" id="storesGrid">
+          <!-- Rendered dynamically by script.js -->
+        </div>
+      </section>
+
       <section class="section order-section" id="order">
         <div class="laundry-drop-scene" aria-hidden="true">
           <img class="falling-cloth shirt" src="assets/clothes/shirt.png" alt="" />
@@ -132,6 +143,12 @@
         <div class="order-layout">
           <form class="order-form" id="orderForm">
             <div class="form-grid">
+              <label class="full-width">
+                Select Store Location
+                <select id="storeSelect" name="storeSelect" required>
+                  <option value="">Choose a store location</option>
+                </select>
+              </label>
               <label>
                 Full name
                 <input id="customerName" name="customerName" type="text" placeholder="Your name" required />

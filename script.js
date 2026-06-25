@@ -14,6 +14,29 @@ const shop = {
   upiId: 'gawadeprasad03-2@okaxis',
 };
 
+const stores = [
+  {
+    id: "sai-nagar",
+    name: "Jagdamb Laundry - Sai Nagar",
+    shortName: "Sai Nagar",
+    address: "Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048",
+    phone: "+91 98216 75395",
+    email: "jagdambalaundry1@gmail.com",
+    mapUrl: "https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048",
+    status: "Open Now"
+  },
+  {
+    id: "three-jewels",
+    name: "Jagdamb Laundry - Three Jewels",
+    shortName: "Three Jewels",
+    address: "Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048",
+    phone: "+91 98216 75395",
+    email: "jagdambalaundry1@gmail.com",
+    mapUrl: "https://www.google.com/maps/search/?api=1&query=Shop%20No.%205,%20Three%20Jewels%20Society,%20Kolte%20Patil%20Developers,%20Tilekar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048",
+    status: "Open Now"
+  }
+];
+
 const services = [
   {
     icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -205,6 +228,7 @@ function formatDateForWhatsApp(isoDate) {
 function formatOrderForWhatsApp(order) {
   const lines = [];
   lines.push(`Order ID: ${order.id}`);
+  if (order.storeName) lines.push(`Store Location: ${order.storeName}`);
   lines.push(`Full name: ${order.customerName || ''}`);
   lines.push(`Phone number: ${order.phone || ''}`);
   lines.push(`Pickup date: ${formatDateForWhatsApp(order.pickupDate)}`);
@@ -232,6 +256,44 @@ function formatOrderForWhatsApp(order) {
 
 function quickMessage() {
   return `Hello ${shop.name}, I want to book a laundry pickup.`;
+}
+
+function renderStores() {
+  const grid = byId("storesGrid");
+  if (grid) {
+    grid.innerHTML = stores
+      .map(
+        (store) => `
+          <article class="store-card">
+            <div class="store-card-header">
+              <h3 class="store-card-name">${store.name}</h3>
+              <span class="store-status-badge">${store.status}</span>
+            </div>
+            <p class="store-card-address">${store.address}</p>
+            <a href="${store.mapUrl}" target="_blank" rel="noopener noreferrer" class="store-locate-link">Locate Now</a>
+            <div class="store-card-contact">
+              <div class="store-card-contact-item">
+                <span>📞</span> <strong>Phone:</strong> ${store.phone}
+              </div>
+              <div class="store-card-contact-item">
+                <span>✉️</span> <strong>Email:</strong> ${store.email}
+              </div>
+            </div>
+            <div class="store-card-actions">
+              <button class="btn primary select-store-btn" type="button" data-id="${store.id}">Schedule a Free Pickup</button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
+  const storeSelectEl = byId("storeSelect");
+  if (storeSelectEl) {
+    storeSelectEl.innerHTML = `<option value="">Choose a store location</option>` + stores
+      .map((store) => `<option value="${store.id}">${store.name}</option>`)
+      .join("");
+  }
 }
 
 function renderServices() {
@@ -366,8 +428,12 @@ function getOrderData(status = "Pending") {
   const form = byId("orderForm");
   const data = new FormData(form);
   const total = totals();
+  const storeId = data.get("storeSelect");
+  const store = stores.find(s => s.id === storeId);
   return {
     id: lastOrder?.id || `FF-${Date.now().toString().slice(-6)}`,
+    storeId: storeId || "",
+    storeName: store ? store.name : "",
     customerName: data.get("customerName")?.trim(),
     phone: data.get("phone")?.trim(),
     address: data.get("address")?.trim(),
@@ -384,8 +450,9 @@ function getOrderData(status = "Pending") {
 function orderMessage(order) {
   const itemLines = order.items.map((item) => `- ${item.item} (${item.service}) x ${item.qty}: ${currency(item.price * item.qty)}`).join("\n");
   const mapLine = order.location ? `\nLocation: ${order.location.mapUrl}` : "";
+  const storeLine = order.storeName ? `\nStore Location: ${order.storeName}` : "";
   return `New Laundry Order - ${shop.name}
-Order ID: ${order.id}
+Order ID: ${order.id}${storeLine}
 Name: ${order.customerName}
 Phone: ${order.phone}
 Address: ${order.address}${mapLine}
@@ -434,8 +501,10 @@ function showReceipt(order) {
     ? `<a href="${order.location.mapUrl}" target="_blank" rel="noreferrer">Open pickup location</a>`
     : "Manual address only";
 
+  const storeRow = order.storeName ? `<div class="receipt-row"><span>Store Location</span><strong>${order.storeName}</strong></div>` : "";
   receiptBody.innerHTML = `
     <div class="receipt-row"><span>Order ID</span><strong>${order.id}</strong></div>
+    ${storeRow}
     <div class="receipt-row"><span>Customer</span><strong>${order.customerName}</strong></div>
     <div class="receipt-row"><span>Phone</span><strong>${order.phone}</strong></div>
     <div class="receipt-row"><span>Pickup</span><strong>${order.pickupDate}, ${order.timeSlot}</strong></div>
@@ -499,6 +568,26 @@ function setupEvents() {
     if (el) el.href = buildWhatsAppPhoneLink(shop.inquiryPhone, shop.inquiryMessage || quickMessage());
   });
 
+  // Store selector from card click
+  const storesGrid = byId("storesGrid");
+  if (storesGrid) {
+    storesGrid.addEventListener("click", (event) => {
+      const button = event.target.closest(".select-store-btn");
+      if (!button) return;
+      const storeId = button.dataset.id;
+      const select = byId("storeSelect");
+      if (select) {
+        select.value = storeId;
+        select.dispatchEvent(new Event("change"));
+        const orderSection = byId("order");
+        if (orderSection) {
+          orderSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        toast(`Selected ${stores.find(s => s.id === storeId)?.shortName || 'Store'}`);
+      }
+    });
+  }
+
   byId("serviceGrid").addEventListener("click", (event) => {
     const button = event.target.closest(".add-service");
     if (!button) return;
@@ -541,8 +630,12 @@ function setupEvents() {
     renderSummary();
   });
 
-  ["customerName", "timeSlot", "pickupDate", "paymentMethod"].forEach((id) => {
-    byId(id).addEventListener("input", renderSummary);
+  ["storeSelect", "customerName", "timeSlot", "pickupDate", "paymentMethod"].forEach((id) => {
+    const el = byId(id);
+    if (el) {
+      el.addEventListener("input", renderSummary);
+      el.addEventListener("change", renderSummary);
+    }
   });
 
   byId("useLocation").addEventListener("click", () => {
@@ -980,6 +1073,7 @@ function setMinDate() {
   byId("pickupDate").min = `${yyyy}-${mm}-${dd}`;
 }
 
+renderStores();
 renderServices();
 renderPricing();
 renderSummary();

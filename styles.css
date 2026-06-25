@@ -1919,3 +1919,119 @@ textarea:focus {
   font-size: 0.85rem;
   border-radius: 6px;
 }
+
+/* Store Selector Form Styling & Stores Section styling */
+.form-grid label.full-width {
+  grid-column: span 2;
+}
+
+.stores-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.store-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  text-align: left;
+}
+
+.store-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+}
+
+.store-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.store-card-name {
+  color: #0d9488; /* Teal brand color */
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.store-status-badge {
+  background: var(--foam);
+  color: var(--aqua);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+
+.store-card-address {
+  font-size: 0.95rem;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  flex-grow: 1;
+}
+
+.store-locate-link {
+  color: var(--aqua);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  margin-bottom: 16px;
+  align-self: flex-start;
+  transition: color 0.18s ease;
+}
+
+.store-locate-link:hover {
+  color: var(--blue);
+}
+
+.store-card-contact {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.store-card-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.store-card-actions {
+  margin-top: auto;
+}
+
+.store-card-actions .btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .stores-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .form-grid label.full-width {
+    grid-column: span 1;
+  }
+}
