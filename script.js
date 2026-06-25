@@ -425,11 +425,6 @@ function saveOrderToHistory(order) {
     history.push(order);
     localStorage.setItem('jld_order_history', JSON.stringify(history));
   }
-
-  // Also save customer details for auto-fill on refresh
-  if (order.customerName) localStorage.setItem('jld_customerName', order.customerName);
-  if (order.phone) localStorage.setItem('jld_phone', order.phone);
-  if (order.address) localStorage.setItem('jld_address', order.address);
 }
 
 function showReceipt(order) {
@@ -987,16 +982,10 @@ renderReviews();
 setMinDate();
 setupEvents();
 
-function loadSavedCustomerDetails() {
-  const name = localStorage.getItem('jld_customerName');
-  const phone = localStorage.getItem('jld_phone');
-  const address = localStorage.getItem('jld_address');
-  if (name && byId("customerName")) byId("customerName").value = name;
-  if (phone && byId("phone")) byId("phone").value = phone;
-  if (address && byId("address")) byId("address").value = address;
-}
-
-loadSavedCustomerDetails();
+// Clean up old autofill local storage keys if they exist
+localStorage.removeItem('jld_customerName');
+localStorage.removeItem('jld_phone');
+localStorage.removeItem('jld_address');
 
 // --- Order History Modal Flow ----------------------------------------------------
 function loadOrders() {
