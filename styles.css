@@ -1609,32 +1609,32 @@ textarea:focus {
     position: relative;
     top: auto;
     right: auto;
-    width: 210px;
-    height: 142px;
+    width: 315px;
+    height: 213px;
     margin: 20px auto 10px;
   }
 
   .laundry-bucket {
-    width: 165px;
-    height: 92px;
+    width: 248px;
+    height: 138px;
   }
 
   .laundry-bucket .bucket-pile {
-    left: 24px;
+    left: 36px;
     top: 7px;
-    width: 118px;
-    height: 54px;
+    width: 177px;
+    height: 81px;
   }
 
   .falling-cloth.shirt {
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 96px;
   }
 
   .falling-cloth.pants {
-    left: 70px;
-    width: 48px;
-    height: 88px;
+    left: 105px;
+    width: 72px;
+    height: 132px;
   }
 
   .washer-card {
