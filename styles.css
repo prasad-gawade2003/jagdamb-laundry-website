@@ -720,12 +720,12 @@ h3 {
 
   78% {
     opacity: 1;
-    transform: translate(108px, 94px) rotate(195deg) scale(0.78);
+    transform: translate(153px, 135px) rotate(195deg) scale(0.78);
   }
 
   100% {
     opacity: 0;
-    transform: translate(122px, 116px) rotate(226deg) scale(0.34);
+    transform: translate(167px, 157px) rotate(226deg) scale(0.34);
   }
 }
 
@@ -741,12 +741,12 @@ h3 {
 
   78% {
     opacity: 1;
-    transform: translate(58px, 76px) rotate(-168deg) scale(0.7);
+    transform: translate(103px, 117px) rotate(-168deg) scale(0.7);
   }
 
   100% {
     opacity: 0;
-    transform: translate(70px, 108px) rotate(-214deg) scale(0.3);
+    transform: translate(115px, 149px) rotate(-214deg) scale(0.3);
   }
 }
 
@@ -1077,8 +1077,8 @@ h3 {
   position: relative;
   margin: 28px auto 0;
   z-index: 2;
-  width: 260px;
-  height: 190px;
+  width: 340px;
+  height: 250px;
   pointer-events: none;
 }
 
@@ -1086,8 +1086,8 @@ h3 {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 210px;
-  height: 112px;
+  width: 280px;
+  height: 150px;
   animation: bucket-idle 2.8s ease-in-out infinite;
 }
 
@@ -1104,10 +1104,10 @@ h3 {
 .laundry-bucket .bucket-pile {
   position: absolute;
   z-index: 5;
-  left: 30px;
+  left: 40px;
   top: 1px;
-  width: 160px;
-  height: 78px;
+  width: 210px;
+  height: 102px;
   object-fit: contain;
   /* make the pile more visible by default (less transparent) */
   opacity: 0.92;
@@ -1141,7 +1141,7 @@ h3 {
 
 .falling-cloth {
   position: absolute;
-  top: -70px;
+  top: -90px;
   opacity: 0;
   object-fit: contain;
   filter: drop-shadow(0 14px 12px rgba(15, 23, 42, 0.2));
@@ -1149,15 +1149,15 @@ h3 {
 }
 
 .falling-cloth.shirt {
-  left: 4px;
-  width: 82px;
-  height: 82px;
+  left: 10px;
+  width: 110px;
+  height: 110px;
 }
 
 .falling-cloth.pants {
-  left: 88px;
-  width: 62px;
-  height: 116px;
+  left: 120px;
+  width: 82px;
+  height: 150px;
 }
 
 .laundry-drop-scene.play .shirt {
