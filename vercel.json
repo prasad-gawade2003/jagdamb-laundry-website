@@ -7,6 +7,7 @@
       "config": {
         "includeFiles": [
           "index.html",
+          "orders.html",
           "styles.css",
           "script.js",
           "assets/**"

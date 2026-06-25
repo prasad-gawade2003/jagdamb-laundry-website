@@ -291,7 +291,32 @@ function validateOrder() {
   return true;
 }
 
+function saveOrderToHistory(order) {
+  if (!order || !order.id) return;
+  let history = [];
+  try {
+    const raw = localStorage.getItem('jld_order_history');
+    if (raw) history = JSON.parse(raw);
+  } catch (e) {
+    console.error("Error reading order history:", e);
+  }
+
+  // Check if order already exists to avoid duplicates
+  const exists = history.some(item => item.id === order.id);
+  if (!exists) {
+    order.createdAt = Date.now();
+    history.push(order);
+    localStorage.setItem('jld_order_history', JSON.stringify(history));
+  }
+
+  // Also save customer details for auto-fill on refresh
+  if (order.customerName) localStorage.setItem('jld_customerName', order.customerName);
+  if (order.phone) localStorage.setItem('jld_phone', order.phone);
+  if (order.address) localStorage.setItem('jld_address', order.address);
+}
+
 function showReceipt(order) {
+  saveOrderToHistory(order);
   const receiptBody = byId("receiptBody");
   const mapLink = order.location
     ? `<a href="${order.location.mapUrl}" target="_blank" rel="noreferrer">Open pickup location</a>`
@@ -544,12 +569,36 @@ function setupEvents() {
     });
   }
 
-  byId("printReceipt").addEventListener("click", () => window.print());
+  byId("printReceipt").addEventListener("click", () => {
+    if (!lastOrder) return;
+    const element = byId("receipt");
+    const opt = {
+      margin: 10,
+      filename: `Jagdamablaundryrecepit${lastOrder.id}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save().then(() => {
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    }).catch(err => {
+      console.error("Direct PDF download failed, falling back to window.print()", err);
+      window.print();
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    });
+  });
 
   byId("receiptWhatsApp").addEventListener("click", () => {
     if (!lastOrder) return;
     const msg = formatOrderForWhatsApp(lastOrder);
     window.open(buildWhatsAppPhoneLink(shop.inquiryPhone, msg), "_blank", "noopener,noreferrer");
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   });
 
   document.querySelector(".menu-toggle").addEventListener("click", (event) => {
@@ -758,3 +807,14 @@ renderSummary();
 renderReviews();
 setMinDate();
 setupEvents();
+
+function loadSavedCustomerDetails() {
+  const name = localStorage.getItem('jld_customerName');
+  const phone = localStorage.getItem('jld_phone');
+  const address = localStorage.getItem('jld_address');
+  if (name && byId("customerName")) byId("customerName").value = name;
+  if (phone && byId("phone")) byId("phone").value = phone;
+  if (address && byId("address")) byId("address").value = address;
+}
+
+loadSavedCustomerDetails();

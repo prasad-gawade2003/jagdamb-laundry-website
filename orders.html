@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="View your previous order history at Jagdamb Laundry & Drycleaners."
+    />
+    <title>Your Order History | Jagdamb Laundry & Drycleaners</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+      .history-layout {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .history-header h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.5rem);
+        color: var(--navy);
+      }
+      .empty-state {
+        text-align: center;
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 48px 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      }
+      .empty-state p {
+        color: var(--muted);
+        margin-bottom: 24px;
+        font-size: 1.1rem;
+      }
+      .order-history-card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      }
+      .order-history-card .receipt-head {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+      }
+      .order-history-card .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 8px 0;
+        font-size: 0.95rem;
+      }
+      .order-history-card .receipt-row span {
+        color: var(--muted);
+      }
+      .order-history-card .receipt-row strong {
+        color: var(--navy);
+      }
+      .history-actions-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+      }
+      .history-actions-row .btn {
+        flex: 1;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+      }
+      .history-item-list {
+        background: var(--soft);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+      }
+      .history-item-list-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+        color: var(--navy);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Jagdamb Laundry home">
+        <img class="brand-mark" src="assets/jagdamblogo.png" alt="Jagdamb Laundry logo" />
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="index.html">Back to Shop</a>
+      </nav>
+    </header>
+
+    <main class="history-layout">
+      <div class="history-header">
+        <h1>Order History</h1>
+        <button class="btn outline" id="clearHistoryBtn" style="display: none;">Clear History</button>
+      </div>
+
+      <div id="ordersContainer"></div>
+    </main>
+
+    <footer class="site-footer">
+      <strong>Jagdamb Laundry & Drycleaners</strong>
+      <span>Wash, Fold, iron, dry cleaning and Quick doorstep pickup.</span>
+      <small>Copyright 2026 Jagdamb Laundry & Drycleaners. All rights reserved.</small>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const shop = {
+        name: "Jagdamb Laundry & Drycleaners",
+        inquiryPhone: "919821675395",
+      };
+
+      const byId = (id) => document.getElementById(id);
+      const currency = (amount) => `Rs ${amount}`;
+
+      function toast(message) {
+        const toastEl = byId("toast");
+        toastEl.textContent = message;
+        toastEl.classList.add("show");
+        window.setTimeout(() => toastEl.classList.remove("show"), 2800);
+      }
+
+      function buildWhatsAppPhoneLink(phone, message) {
+        const base = `https://api.whatsapp.com/send`;
+        const params = [`phone=${encodeURIComponent(phone)}`];
+        if (message) params.push(`text=${encodeURIComponent(message)}`);
+        return `${base}?${params.join("&")}`;
+      }
+
+      function formatDateForWhatsApp(isoDate) {
+        if (!isoDate) return "";
+        try {
+          const d = new Date(isoDate);
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const yyyy = d.getFullYear();
+          return `${dd}-${mm}-${yyyy}`;
+        } catch (e) {
+          return isoDate;
+        }
+      }
+
+      function formatOrderForWhatsApp(order) {
+        const lines = [];
+        lines.push(`Order ID: ${order.id}`);
+        lines.push(`Full name: ${order.customerName || ''}`);
+        lines.push(`Phone number: ${order.phone || ''}`);
+        lines.push(`Pickup date: ${formatDateForWhatsApp(order.pickupDate)}`);
+        lines.push(`Time slot: ${order.timeSlot || ''}`);
+        lines.push(`Payment method: ${order.paymentMethod || ''}`);
+        lines.push(`Pickup address: ${order.address || ''}`);
+        if (order.location && order.location.mapUrl) lines.push(`Location: ${order.location.mapUrl}`);
+        lines.push('');
+        lines.push('Items:');
+        if (order.items && order.items.length) {
+          order.items.forEach((it) => {
+            lines.push(`- ${it.item} (${it.service}) x ${it.qty}: ${currency(it.price * it.qty)}`);
+          });
+        } else {
+          lines.push('- No items');
+        }
+        lines.push('');
+        lines.push(`Pickup charge: ${currency(order.pickup)}`);
+        lines.push(`Total: ${currency(order.total)}`);
+        lines.push('');
+        lines.push(`Payment receipt: Amount to pay ${currency(order.total)} - ${order.paymentStatus || 'Pending'}`);
+        return lines.join('\n');
+      }
+
+      function loadOrders() {
+        const container = byId('ordersContainer');
+        const clearBtn = byId('clearHistoryBtn');
+        let history = [];
+
+        try {
+          const raw = localStorage.getItem('jld_order_history');
+          if (raw) history = JSON.parse(raw);
+        } catch (e) {
+          console.error("Error reading order history:", e);
+        }
+
+        // Sort orders newest first
+        history.reverse();
+
+        if (history.length === 0) {
+          clearBtn.style.display = 'none';
+          container.innerHTML = `
+            <div class="empty-state">
+              <p>You haven't placed any orders yet.</p>
+              <a class="btn primary" href="index.html">Book Your First Pickup</a>
+            </div>
+          `;
+          return;
+        }
+
+        clearBtn.style.display = 'block';
+
+        container.innerHTML = history.map((order, idx) => {
+          const mapLink = order.location
+            ? `<a href="${order.location.mapUrl}" target="_blank" rel="noreferrer">Open maps</a>`
+            : "Manual address only";
+
+          const itemsHtml = order.items && order.items.length
+            ? `
+              <div class="history-item-list">
+                <div class="history-item-list-title">Items:</div>
+                ${order.items.map(item => `
+                  <div class="receipt-row" style="margin: 4px 0; font-size: 0.9rem;">
+                    <span>${item.item} - ${item.service} x ${item.qty}</span>
+                    <strong>${currency(item.price * item.qty)}</strong>
+                  </div>
+                `).join('')}
+              </div>
+            `
+            : '';
+
+          return `
+            <div class="order-history-card">
+              <div class="receipt-head" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>Order #${order.id}</strong>
+                  <span style="display: block; font-size: 0.8rem; color: var(--muted); margin-top: 4px;">
+                    Booked on ${new Date(order.createdAt || Date.now()).toLocaleDateString()}
+                  </span>
+                </div>
+                <b class="receipt-status" style="background: var(--soft); color: var(--blue); padding: 4px 8px; border-radius: 6px; font-size: 0.9rem;">
+                  ${order.paymentStatus}
+                </b>
+              </div>
+
+              <div class="receipt-row"><span>Customer</span><strong>${order.customerName}</strong></div>
+              <div class="receipt-row"><span>Phone</span><strong>${order.phone}</strong></div>
+              <div class="receipt-row"><span>Pickup Details</span><strong>${order.pickupDate}, ${order.timeSlot}</strong></div>
+              <div class="receipt-row"><span>Address</span><strong>${order.address}</strong></div>
+              <div class="receipt-row"><span>Location</span><strong>${mapLink}</strong></div>
+
+              ${itemsHtml}
+
+              <div class="receipt-row" style="margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px;">
+                <span>Pickup charge</span>
+                <strong>${currency(order.pickup)}</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Total Amount</span>
+                <strong style="color: var(--blue); font-size: 1.1rem;">${currency(order.total)}</strong>
+              </div>
+              <div class="receipt-row"><span>Payment Method</span><strong>${order.paymentMethod}</strong></div>
+
+              <div class="history-actions-row">
+                <button class="btn whatsapp" onclick="shareOrder(${idx})">Share on WhatsApp</button>
+                <button class="btn outline" onclick="downloadOrderPDF(${idx})">Download PDF</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Store history globally in window context for use in shareOrder
+        window.loadedHistory = history;
+      }
+
+      function shareOrder(renderIdx) {
+        const order = window.loadedHistory[renderIdx];
+        if (!order) return;
+        const msg = formatOrderForWhatsApp(order);
+        window.open(buildWhatsAppPhoneLink(shop.inquiryPhone, msg), "_blank", "noopener,noreferrer");
+      }
+
+      function downloadOrderPDF(renderIdx) {
+        const order = window.loadedHistory[renderIdx];
+        if (!order) return;
+
+        // Create a temporary container for rendering the receipt card cleanly for pdf capture
+        const tempDiv = document.createElement('div');
+        tempDiv.className = 'receipt-card';
+        tempDiv.style.padding = '24px';
+        tempDiv.style.background = '#ffffff';
+        tempDiv.style.color = '#0f172a';
+        tempDiv.style.fontFamily = 'Inter, sans-serif';
+        tempDiv.style.width = '600px';
+
+        tempDiv.innerHTML = `
+          <div class="receipt-head" style="display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
+            <div>
+              <strong style="font-size: 1.2rem; color: #0f172a; font-family: Inter, sans-serif;">${shop.name}</strong>
+              <span style="display: block; font-size: 0.8rem; color: #64748b; font-family: Inter, sans-serif;">Payment Receipt</span>
+            </div>
+            <b style="color: #2563eb; font-size: 1.2rem; font-family: Inter, sans-serif;">${order.paymentStatus}</b>
+          </div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Order ID</span><strong style="color:#0f172a;">${order.id}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Customer</span><strong style="color:#0f172a;">${order.customerName}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Phone</span><strong style="color:#0f172a;">${order.phone}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Pickup</span><strong style="color:#0f172a;">${order.pickupDate}, ${order.timeSlot}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Address</span><strong style="color:#0f172a;">${order.address}</strong></div>
+
+          <div style="background: #eef9ff; border-radius: 8px; padding: 12px; margin: 16px 0; font-family: Inter, sans-serif;">
+            <strong style="display: block; margin-bottom: 8px; color: #0f172a;">Items:</strong>
+            ${order.items.map(item => `
+              <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 0.9rem;">
+                <span>${item.item} - ${item.service} x ${item.qty}</span>
+                <strong style="color:#0f172a;">${currency(item.price * item.qty)}</strong>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; border-top: 1px dashed #dbe5f0; padding-top: 8px; font-family: Inter, sans-serif;"><span>Pickup charge</span><strong style="color:#0f172a;">${currency(order.pickup)}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Total</span><strong style="color:#0f172a;">${currency(order.total)}</strong></div>
+          <div class="receipt-row" style="display: flex; justify-content: space-between; margin: 8px 0; font-family: Inter, sans-serif;"><span>Payment method</span><strong style="color:#0f172a;">${order.paymentMethod}</strong></div>
+          <p style="text-align: center; color: #64748b; margin-top: 24px; font-size: 0.9rem; font-family: Inter, sans-serif;">Thank you for choosing ${shop.name}.</p>
+        `;
+
+        document.body.appendChild(tempDiv);
+
+        const opt = {
+          margin: 10,
+          filename: `Jagdamablaundryrecepit${order.id}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(tempDiv).save().then(() => {
+          document.body.removeChild(tempDiv);
+        }).catch(err => {
+          console.error("PDF download error:", err);
+          document.body.removeChild(tempDiv);
+        });
+      }
+
+      byId('clearHistoryBtn').addEventListener('click', () => {
+        if (confirm("Are you sure you want to clear your entire order history?")) {
+          localStorage.removeItem('jld_order_history');
+          toast("Order history cleared.");
+          loadOrders();
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', loadOrders);
+    </script>
+  </body>
+</html>
