@@ -49,3 +49,27 @@ PUBLIC_BASE_URL=https://your-public-domain
 2. Configure the provider to call `https://your-public-domain/api/webhook/payment` for payment updates.
 
 3. The server will verify the webhook HMAC if `DECENTRO_WEBHOOK_SECRET` is set.
+
+WAHA (WhatsApp HTTP API) / WhatsApp setup
+----------------------------------------
+
+This project can send outbound WhatsApp messages using either the Meta WhatsApp Cloud API or a WAHA-compatible HTTP endpoint.
+
+1. WhatsApp Cloud API (Meta):
+	- Create an app at https://developers.facebook.com/apps and add the WhatsApp product.
+	- Obtain `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` and set them in `.env`.
+
+2. WAHA (optional):
+	- If you run a WAHA-compatible endpoint, set `WAHA_ENABLED=true` and `WAHA_API_URL` to the endpoint in `.env`.
+	- Optionally set `WAHA_API_TOKEN` for bearer auth and `WAHA_FROM_PHONE` (e.g. 7977411572).
+	- The server will prefer WAHA when enabled and fall back to the Cloud API.
+
+Test the configuration by calling:
+
+```bash
+curl -X POST http://localhost:3000/api/test-whatsapp \
+  -H 'Content-Type: application/json' \
+  -d '{"to":"91977XXXXXXXX","message":"Hello from Jagdamb Laundry"}'
+```
+
+If successful, the endpoint returns `{ "success": true }` and the message will be sent via WAHA or the Cloud API.

@@ -1,10 +1,10 @@
 const shop = {
   name: "Jagdamb Laundry & Drycleaners",
-  phone: "+91 98216 75395",
+  phone: "+91 79774 11572",
   // Can be a phone number (e.g. "919876543210") or a direct URL (e.g. "https://wa.link/xyz")
-  whatsapp: "https://wa.link/ag0klr",
+  whatsapp: "917977411572",
   // Inquiry contact (explicit api.whatsapp.com link should use this phone)
-  inquiryPhone: "919821675395",
+  inquiryPhone: "917977411572",
   inquiryMessage: "Hi Jagdamb Laundry & Drycleaners, could you please provide more details on your services and turnaround time? Thanks!",
   address: "Shop 12, Main Market Road, Your City",
   // pickupCharge is now free for customers; keep original for display as struck-through
@@ -14,7 +14,7 @@ const shop = {
   upiId: 'gawadeprasad03-2@okaxis',
 };
 
-const stores = [
+let stores = [
   {
     id: "sai-nagar",
     name: "Jagdamb Laundry - Sai Nagar",
@@ -37,7 +37,7 @@ const stores = [
   }
 ];
 
-const services = [
+let services = [
   {
     icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="50" cy="12" r="3" fill="#a5f3fc" />
@@ -212,16 +212,51 @@ function buildWhatsAppPhoneLink(phone, message) {
   return `${base}?${params.join("&")}`;
 }
 
+// Normalize a customer phone to WhatsApp international format (91XXXXXXXXXX)
+function normalizePhoneForWhatsApp(phone) {
+  if (!phone) return '';
+  let digits = String(phone).replace(/[^0-9]/g, '');
+  // Remove leading 0 (local format)
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  // Add India country code if not present
+  if (!digits.startsWith('91')) digits = '91' + digits;
+  // Ensure it's a valid length (91 + 10 digits)
+  if (digits.length !== 12) return digits;
+  return digits;
+}
+
+function normalizePickupDate(value) {
+  if (!value) return '';
+  const dateStr = String(value).trim();
+  if (!dateStr) return '';
+
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
+  const dmyMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  if (dmyMatch) return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed)) {
+    const year = parsed.getUTCFullYear();
+    if (year >= 1000 && year <= 9999) {
+      return parsed.toISOString().slice(0, 10);
+    }
+  }
+  return '';
+}
+
 function formatDateForWhatsApp(isoDate) {
-  if (!isoDate) return "";
+  const normalized = normalizePickupDate(isoDate);
+  if (!normalized) return "";
   try {
-    const d = new Date(isoDate);
+    const d = new Date(normalized);
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = d.getFullYear();
     return `${dd}-${mm}-${yyyy}`;
   } catch (e) {
-    return isoDate;
+    return normalized;
   }
 }
 
@@ -252,6 +287,109 @@ function formatOrderForWhatsApp(order) {
   lines.push(`Payment receipt: Amount to pay ${currency(order.total)} - ${order.paymentStatus || 'Pending'}`);
   // do not append a 'Sent from' footer
   return lines.join('\n');
+}
+
+// Receipt message for CUSTOMER (friendly, thank you message)
+function formatReceiptForCustomer(order) {
+  const lines = [];
+  lines.push(`🧺 *${shop.name}*`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  lines.push(`✅ *Order Confirmed!*`);
+  lines.push('');
+  lines.push(`📋 *Order ID:* ${order.id}`);
+  if (order.storeName) lines.push(`🏪 *Store:* ${order.storeName}`);
+  lines.push(`👤 *Name:* ${order.customerName || ''}`);
+  lines.push(`📅 *Pickup Date:* ${formatDateForWhatsApp(order.pickupDate)}`);
+  lines.push(`🕐 *Time Slot:* ${order.timeSlot || ''}`);
+  lines.push(`📍 *Address:* ${order.address || ''}`);
+  if (order.location && order.location.mapUrl) lines.push(`📌 *Location:* ${order.location.mapUrl}`);
+  lines.push('');
+  lines.push(`🛒 *Items:*`);
+  if (order.items && order.items.length) {
+    order.items.forEach((it) => {
+      lines.push(`  • ${it.item} (${it.service}) x ${it.qty} — ${currency(it.price * it.qty)}`);
+    });
+  }
+  lines.push('');
+  lines.push(`🚚 Pickup charge: ${currency(order.pickup)}`);
+  lines.push(`💰 *Total: ${currency(order.total)}*`);
+  lines.push('');
+  lines.push(`💳 *Payment:* ${order.paymentMethod || ''} — ${order.paymentStatus || 'Pending'}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  lines.push(`🙏 Thank you for choosing ${shop.name}!`);
+  lines.push(`We will confirm your pickup shortly.`);
+  lines.push(`📞 Contact: ${shop.phone}`);
+  return lines.join('\n');
+}
+
+// Receipt message for LAUNDRY OWNER (order notification)
+function formatReceiptForLaundry(order) {
+  const lines = [];
+  lines.push(`🔔 *NEW ORDER RECEIVED!*`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  lines.push(`📋 *Order ID:* ${order.id}`);
+  if (order.storeName) lines.push(`🏪 *Store:* ${order.storeName}`);
+  lines.push('');
+  lines.push(`👤 *Customer:* ${order.customerName || ''}`);
+  lines.push(`📱 *Phone:* ${order.phone || ''}`);
+  lines.push(`📍 *Address:* ${order.address || ''}`);
+  if (order.location && order.location.mapUrl) lines.push(`📌 *Location:* ${order.location.mapUrl}`);
+  lines.push(`📅 *Pickup:* ${formatDateForWhatsApp(order.pickupDate)}, ${order.timeSlot || ''}`);
+  lines.push('');
+  lines.push(`🛒 *Items:*`);
+  if (order.items && order.items.length) {
+    order.items.forEach((it) => {
+      lines.push(`  • ${it.item} (${it.service}) x ${it.qty} — ${currency(it.price * it.qty)}`);
+    });
+  }
+  lines.push('');
+  lines.push(`🚚 Pickup charge: ${currency(order.pickup)}`);
+  lines.push(`💰 *Total: ${currency(order.total)}*`);
+  lines.push(`💳 *Payment:* ${order.paymentMethod || ''} — ${order.paymentStatus || 'Pending'}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  return lines.join('\n');
+}
+
+// Automatically send WhatsApp order receipt — opens WhatsApp to laundry.
+// The sent message in customer's WhatsApp chat IS their proof of booking.
+// Server-side WhatsApp API also sends auto receipt to customer's number.
+function sendAutoWhatsAppReceipts(order) {
+  const laundryPhone = shop.inquiryPhone;
+
+  // Build a combined receipt that serves as proof for customer + notification for laundry
+  const lines = [];
+  lines.push(`🧺 *${shop.name}*`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  lines.push(`✅ *ORDER RECEIPT*`);
+  lines.push(``);
+  lines.push(`📋 *Order ID:* ${order.id}`);
+  if (order.storeName) lines.push(`🏪 *Store:* ${order.storeName}`);
+  lines.push(`👤 *Name:* ${order.customerName || ''}`);
+  lines.push(`📱 *Phone:* ${order.phone || ''}`);
+  lines.push(`📅 *Pickup:* ${formatDateForWhatsApp(order.pickupDate)}, ${order.timeSlot || ''}`);
+  lines.push(`📍 *Address:* ${order.address || ''}`);
+  if (order.location && order.location.mapUrl) lines.push(`📌 *Location:* ${order.location.mapUrl}`);
+  lines.push(``);
+  lines.push(`🛒 *Items:*`);
+  if (order.items && order.items.length) {
+    order.items.forEach((it) => {
+      lines.push(`  • ${it.item} (${it.service}) x ${it.qty} — ${currency(it.price * it.qty)}`);
+    });
+  }
+  lines.push(``);
+  lines.push(`🚚 Pickup charge: ${currency(order.pickup)}`);
+  lines.push(`💰 *Total: ${currency(order.total)}*`);
+  lines.push(`💳 *Payment:* ${order.paymentMethod || ''} — ${order.paymentStatus || 'Pending'}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━`);
+  lines.push(`🙏 Thank you for choosing ${shop.name}!`);
+
+  const msg = lines.join('\n');
+
+  // Open WhatsApp to laundry — customer sends this, both have the receipt
+  const link = buildWhatsAppPhoneLink(laundryPhone, msg);
+  window.open(link, '_blank', 'noopener,noreferrer');
+
+  toast("📱 WhatsApp receipt opened — tap Send to confirm your order!");
 }
 
 function quickMessage() {
@@ -437,7 +575,7 @@ function getOrderData(status = "Pending") {
     customerName: data.get("customerName")?.trim(),
     phone: data.get("phone")?.trim(),
     address: data.get("address")?.trim(),
-    pickupDate: data.get("pickupDate"),
+    pickupDate: normalizePickupDate(data.get("pickupDate")),
     timeSlot: data.get("timeSlot"),
     paymentMethod: data.get("paymentMethod"),
     paymentStatus: status,
@@ -492,6 +630,18 @@ function saveOrderToHistory(order) {
     history.push(order);
     localStorage.setItem('jld_order_history', JSON.stringify(history));
   }
+
+  // Also save to server database for admin panel
+  if (order._serverOrderCreated) return;
+  try {
+    fetch(API_BASE + '/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order)
+    }).catch(err => console.warn('Could not save order to server:', err.message));
+  } catch (e) {
+    console.warn('Could not save order to server:', e);
+  }
 }
 
 function showReceipt(order) {
@@ -537,6 +687,9 @@ function completeOrder(status) {
   lastOrder = order;
   showReceipt(order);
   toast(status === "Paid" ? "Payment successful. Receipt generated." : "Order saved. Receipt generated.");
+
+  // Auto-send WhatsApp receipts to both customer and laundry
+  sendAutoWhatsAppReceipts(order);
 }
 
 function showPayment(order) {
@@ -683,9 +836,12 @@ function setupEvents() {
         try {
           // create payment on backend which in turn calls Razorpay
           const payload = await createRazorpayOrderOnServer(order);
-          // payload: { order_id, amount, currency, key_id }
+          // payload: { local_order_id, razorpay_order_id, amount, currency, key_id }
           pendingOrder = order;
-          pendingOrder.id = payload.order_id;
+          pendingOrder.id = payload.local_order_id;
+          pendingOrder.razorpay_order_id = payload.razorpay_order_id;
+          pendingOrder.paymentStatus = 'Payment Waiting';
+          pendingOrder._serverOrderCreated = true;
 
           // Open Razorpay Checkout Modal
           const options = {
@@ -774,27 +930,222 @@ function setupEvents() {
     });
   }
 
-  byId("printReceipt").addEventListener("click", () => {
-    if (!lastOrder) return;
-    const element = byId("receipt");
-    const opt = {
-      margin: 10,
-      filename: `Jagdamablaundryrecepit${lastOrder.id}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(element).save().then(() => {
-      setTimeout(() => {
-        window.location.reload();
-      }, 800);
-    }).catch(err => {
-      console.error("Direct PDF download failed, falling back to window.print()", err);
-      window.print();
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+  function loadImageAsDataUrl(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
     });
+  }
+
+  async function generateReceiptPdf(order) {
+    const jsPDFClass = window.jspdf?.jsPDF || window.jsPDF || window.jspdf;
+    if (!jsPDFClass) {
+      throw new Error('jsPDF is not loaded');
+    }
+
+    const doc = new jsPDFClass({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const margin = 15;
+    const pageWidth = 210;
+    const usableWidth = pageWidth - margin * 2;
+    let y = 15;
+
+    const logoUrl = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/assets/jagdamblogo.png`;
+    const logoData = await loadImageAsDataUrl(logoUrl);
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', margin, y, 30, 30);
+    }
+
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(shop.name, margin + (logoData ? 35 : 0), y + (logoData ? 12 : 10));
+    y += 30;
+
+    doc.setDrawColor(225, 230, 240);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Receipt', pageWidth - margin, y, { align: 'right' });
+    y += 10;
+
+    const addField = (label, value) => {
+      doc.setTextColor(100, 116, 139);
+      doc.text(label, margin, y);
+      doc.setTextColor(15, 23, 42);
+      doc.text(value, pageWidth - margin, y, { align: 'right' });
+      y += 7;
+    };
+
+    addField('Order ID', String(order.id));
+    addField('Customer', order.customerName || 'N/A');
+    addField('Phone', order.phone || 'N/A');
+    addField('Pickup', `${order.pickupDate || 'N/A'} ${order.timeSlot || ''}`.trim());
+    addField('Address', order.address || 'N/A');
+    y += 4;
+
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Items', margin, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+
+    const items = order.items || [];
+    if (items.length === 0) {
+      doc.text('No items listed', margin, y);
+      y += 8;
+    } else {
+      items.forEach((item) => {
+        const text = `${item.item} (${item.service}) x ${item.qty}`;
+        const amount = currency(item.price * item.qty);
+        doc.text(text, margin, y);
+        doc.text(amount, pageWidth - margin, y, { align: 'right' });
+        y += 7;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+    }
+
+    y += 8;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    addField('Pickup charge', currency(order.pickup));
+    addField('Total', currency(order.total));
+    addField('Payment method', order.paymentMethod || 'N/A');
+    addField('Payment status', order.paymentStatus || 'N/A');
+    y += 10;
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(248, 250, 252);
+    if (doc.roundedRect) {
+      doc.roundedRect(margin, y, usableWidth, 18, 3, 3, 'F');
+    } else {
+      doc.rect(margin, y, usableWidth, 18, 'F');
+    }
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(10);
+    doc.text('Thank you for choosing ' + shop.name + '.', margin + 3, y + 6);
+    doc.text('Contact +91 79774 11572 for support.', margin + 3, y + 13);
+
+    return doc;
+  }
+
+  function openPrintableReceipt(order) {
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Receipt ${order.id}</title>
+        <style>
+          body { margin: 0; padding: 24px; font-family: Inter, sans-serif; background: #f8fafc; color: #0f172a; }
+          .receipt { max-width: 820px; margin: 0 auto; padding: 28px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; }
+          .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+          .brand { display: flex; align-items: center; gap: 16px; }
+          .brand img { height: 64px; width: auto; object-fit: contain; }
+          .title { font-size: 1.65rem; font-weight: 700; margin: 0; }
+          .subtitle { margin: 4px 0 0; color: #64748b; font-size: 0.95rem; }
+          .status { text-align: right; }
+          .status span { display: block; color: #64748b; font-size: 0.9rem; }
+          .status strong { display: block; margin-top: 8px; font-size: 1.05rem; color: #111827; }
+          .info { display: grid; gap: 10px; margin-bottom: 20px; }
+          .info div { display: flex; justify-content: space-between; color: #475569; font-size: 0.95rem; }
+          .divider { border-top: 1px solid #e2e8f0; margin: 20px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 10px 0; font-size: 0.95rem; color: #0f172a; }
+          .totals { display: grid; gap: 10px; margin-top: 20px; color: #475569; font-size: 0.95rem; }
+          .totals div { display: flex; justify-content: space-between; }
+          .footer { margin-top: 28px; padding: 18px; background: #f8fafc; border-radius: 10px; color: #475569; font-size: 0.92rem; }
+          @media print {
+            body { background: #ffffff; }
+            .receipt { box-shadow: none; border: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <div class="brand">
+              <img src="assets/jagdamblogo.png" alt="Logo" />
+              <div>
+                <div class="title">${shop.name}</div>
+                <div class="subtitle">Laundry & Drycleaners</div>
+              </div>
+            </div>
+            <div class="status">
+              <span>Receipt</span>
+              <strong>${order.paymentStatus || 'Paid'}</strong>
+            </div>
+          </div>
+          <div class="info">
+            <div><span>Order ID</span><strong>${order.id}</strong></div>
+            <div><span>Customer</span><strong>${order.customerName}</strong></div>
+            <div><span>Phone</span><strong>${order.phone}</strong></div>
+            <div><span>Pickup</span><strong>${order.pickupDate}, ${order.timeSlot || ''}</strong></div>
+            <div><span>Address</span><strong>${order.address || 'N/A'}</strong></div>
+          </div>
+          <div class="divider"></div>
+          <table>
+            ${((order.items || []).length > 0 ? order.items.map(item => `
+              <tr>
+                <td>${item.item} (${item.service}) x ${item.qty}</td>
+                <td style="text-align:right;">${currency(item.price * item.qty)}</td>
+              </tr>
+            `).join('') : '<tr><td>No items listed</td><td></td></tr>')}
+          </table>
+          <div class="divider"></div>
+          <div class="totals">
+            <div><span>Pickup charge</span><strong>${currency(order.pickup)}</strong></div>
+            <div><span>Total</span><strong>${currency(order.total)}</strong></div>
+            <div><span>Payment method</span><strong>${order.paymentMethod || 'N/A'}</strong></div>
+            <div><span>Payment status</span><strong>${order.paymentStatus || 'N/A'}</strong></div>
+          </div>
+          <div class="footer">Thank you for choosing ${shop.name}. Please keep this receipt for your records. Contact +91 79774 11572 for support.</div>
+        </div>
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Please allow popups for printing the receipt.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  }
+
+  byId("printReceipt").addEventListener("click", async () => {
+    if (!lastOrder) return;
+
+    try {
+      const pdf = await generateReceiptPdf(lastOrder);
+      pdf.save(`Jagdamablaundryrecepit${lastOrder.id}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      openPrintableReceipt(lastOrder);
+    }
   });
 
   byId("receiptWhatsApp").addEventListener("click", () => {
@@ -1080,6 +1431,48 @@ renderSummary();
 renderReviews();
 setMinDate();
 setupEvents();
+
+// Fetch latest services and stores from API (admin panel edits reflect here)
+(async function loadFromApi() {
+  try {
+    const [apiServices, apiStores] = await Promise.all([
+      fetch(API_BASE + '/api/services').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(API_BASE + '/api/stores').then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+
+    if (apiServices && apiServices.length) {
+      // Keep hardcoded SVG icons, update name/price/desc from DB
+      const iconMap = {};
+      services.forEach(s => { iconMap[s.name] = s.icon; });
+      services = apiServices.map(s => ({
+        icon: iconMap[s.name] || services[0]?.icon || '',
+        name: s.name,
+        desc: s.description || s.desc || '',
+        price: s.price,
+        unit: s.unit || ''
+      }));
+      renderServices();
+      renderPricing();
+    }
+
+    if (apiStores && apiStores.length) {
+      stores = apiStores.map(s => ({
+        id: s.id,
+        name: s.name,
+        shortName: s.short_name || s.shortName || '',
+        address: s.address || '',
+        phone: s.phone || '',
+        email: s.email || '',
+        mapUrl: s.map_url || s.mapUrl || '',
+        status: s.status || 'Open Now'
+      }));
+      renderStores();
+    }
+  } catch (e) {
+    // API unavailable — hardcoded values are already rendered
+    console.warn('Could not fetch from API, using default values:', e.message);
+  }
+})();
 
 // Clean up old autofill local storage keys if they exist
 localStorage.removeItem('jld_customerName');

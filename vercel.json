@@ -10,7 +10,9 @@
           "orders.html",
           "styles.css",
           "script.js",
-          "assets/**"
+          "assets/**",
+          "db/**",
+          "admin/**"
         ]
       }
     }
