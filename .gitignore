@@ -7,3 +7,5 @@ build/
 db/*.db
 db/*.db-shm
 db/*.db-wal
+
+.vercel
