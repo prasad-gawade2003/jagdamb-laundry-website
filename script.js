@@ -53,7 +53,7 @@ let services = [
     </svg>`,
     name: "Wash & Fold",
     desc: "Daily wear cleaned, folded and packed.",
-    price: 1,
+    price: 70,
     unit: "/kg"
   },
   {

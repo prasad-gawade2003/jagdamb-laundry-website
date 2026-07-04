@@ -44,7 +44,7 @@ console.log('✅ Stores seeded');
 
 // ── Default services ────────────────────────────────────────────────────────
 const services = [
-  { name: 'Wash & Fold', desc: 'Daily wear cleaned, folded and packed.', price: 1, unit: '/kg' },
+  { name: 'Wash & Fold', desc: 'Daily wear cleaned, folded and packed.', price: 70, unit: '/kg' },
   { name: 'Wash & Iron', desc: 'Fresh wash with crisp ironing.', price: 90, unit: '/kg' },
   { name: 'Dry Cleaning', desc: 'Premium care for suits, sarees and delicate clothes.', price: 60, unit: '' },
   { name: 'Saree Ironing', desc: 'Sharp finish for office and occasion wear.', price: 60, unit: '' },
