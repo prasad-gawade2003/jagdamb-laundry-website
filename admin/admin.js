@@ -444,6 +444,21 @@ window.whatsappOrder = function(id) {
   window.open(`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(msg)}`, '_blank');
 };
 
+// Send completed notification via backend (WAHA / Cloud API)
+window.sendCompletedNotification = async function(id) {
+  try {
+    const res = await api(`/api/admin/orders/${id}/send-completed-notification`, { method: 'POST' });
+    if (res.success) {
+      toast('Completed notification sent successfully!');
+    } else {
+      toast('Failed to send completed notification: ' + (res.error || 'Unknown error'));
+    }
+  } catch (err) {
+    console.error(err);
+    toast('Error sending notification.');
+  }
+};
+
 // Order detail modal
 window.showOrderDetail = async function(id) {
   try {
@@ -465,6 +480,7 @@ window.showOrderDetail = async function(id) {
         <div class="detail-item"><label>Phone</label><span>${order.phone}</span></div>
         <div class="detail-item"><label>Store</label><span>${order.store_name || '—'}</span></div>
         <div class="detail-item"><label>Pickup Date</label><span>${order.pickup_date ? `${formatPickupDate(order.pickup_date)}, ${order.time_slot}` : order.time_slot}</span></div>
+        <div class="detail-item"><label>Delivery Scheduled</label><span style="font-weight:bold;color:var(--accent);">${order.delivery_date ? `${formatPickupDate(order.delivery_date)}, ${order.delivery_time_slot}` : 'Not scheduled yet'}</span></div>
         <div class="detail-item"><label>Address</label><span>${order.address}</span></div>
         <div class="detail-item"><label>Location</label><span>${mapLink}</span></div>
         <div class="detail-item"><label>Payment Method</label><span>${order.payment_method}</span></div>
@@ -503,6 +519,7 @@ window.showOrderDetail = async function(id) {
         </select>
         <button class="btn-primary btn-sm" onclick="updateDetailStatus('${order.id}')">Update Status</button>
         <button class="btn-whatsapp" onclick="whatsappOrder('${order.id}')">WhatsApp Customer</button>
+        ${order.order_status === 'Completed' ? `<button class="btn-whatsapp" onclick="sendCompletedNotification('${order.id}')" title="Send automatic notification from business account">Notify Completed (WhatsApp)</button>` : ''}
         ${order.payment_status !== 'Paid' ? `<button class="btn-outline" onclick="markPaid('${order.id}')">Mark Paid</button>` : ''}
       </div>
     `;

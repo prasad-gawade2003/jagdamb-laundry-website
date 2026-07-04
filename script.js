@@ -822,6 +822,7 @@ function setupEvents() {
     const status = method === "Online Payment" ? "Payment Waiting" : "COD Pending";
     const order = getOrderData(status);
     lastOrder = order;
+    saveOrderToHistory(order);
     const msg = formatOrderForWhatsApp(order);
     window.open(buildWhatsAppPhoneLink(shop.inquiryPhone, msg), "_blank", "noopener,noreferrer");
   });
@@ -850,7 +851,7 @@ function setupEvents() {
             currency: payload.currency,
             name: "Jagdamb Laundry",
             description: "Laundry Order Payment",
-            order_id: payload.order_id,
+            order_id: payload.razorpay_order_id,
             handler: async function (response) {
               try {
                 // Send payment credentials to verification endpoint
@@ -1652,3 +1653,97 @@ window.downloadOrderPDF = function (renderIdx) {
     document.body.removeChild(tempDiv);
   });
 };
+
+// --- Delivery Slot Booking Flow ---
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get('action');
+  const orderId = urlParams.get('order_id');
+
+  if (action === 'schedule-delivery' && orderId) {
+    // Wait a brief moment to let other API data load before triggering modal
+    setTimeout(() => {
+      initDeliveryBooking(orderId);
+    }, 500);
+  }
+
+  async function initDeliveryBooking(orderId) {
+    const modal = byId('deliveryModal');
+    if (!modal) return;
+
+    try {
+      const resp = await fetch(API_BASE + `/api/public/orders/${orderId}`);
+      if (!resp.ok) {
+        throw new Error('Order not found or invalid ID');
+      }
+      const order = await resp.json();
+
+      // Populate form
+      byId('deliveryOrderId').value = order.id;
+      byId('deliveryCustomerName').value = order.customer_name;
+      byId('deliveryPhone').value = order.phone;
+      byId('deliveryAddress').value = order.address;
+
+      // Set min date for delivery to today
+      const today = new Date().toISOString().split('T')[0];
+      const deliveryDateEl = byId('deliveryDate');
+      if (deliveryDateEl) {
+        deliveryDateEl.min = today;
+        deliveryDateEl.value = order.delivery_date || today;
+      }
+
+      const deliveryTimeSlotEl = byId('deliveryTimeSlot');
+      if (deliveryTimeSlotEl && order.delivery_time_slot) {
+        deliveryTimeSlotEl.value = order.delivery_time_slot;
+      }
+
+      // Show modal
+      modal.setAttribute('aria-hidden', 'false');
+    } catch (err) {
+      console.error(err);
+      toast('Could not load order details for scheduling: ' + err.message);
+    }
+  }
+
+  const deliveryClose = byId('deliveryClose');
+  const deliveryBackdrop = byId('deliveryBackdrop');
+  if (deliveryClose) {
+    deliveryClose.addEventListener('click', () => {
+      byId('deliveryModal').setAttribute('aria-hidden', 'true');
+    });
+  }
+  if (deliveryBackdrop) {
+    deliveryBackdrop.addEventListener('click', () => {
+      byId('deliveryModal').setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  const deliveryForm = byId('deliveryForm');
+  if (deliveryForm) {
+    deliveryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = byId('deliveryOrderId').value;
+      const delivery_date = byId('deliveryDate').value;
+      const delivery_time_slot = byId('deliveryTimeSlot').value;
+
+      try {
+        const resp = await fetch(API_BASE + `/api/public/orders/${id}/schedule-delivery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delivery_date, delivery_time_slot })
+        });
+
+        if (!resp.ok) {
+          const errData = await resp.json();
+          throw new Error(errData.error || 'Failed to book slot');
+        }
+
+        toast('🎉 Delivery slot booked successfully! You will receive a WhatsApp confirmation shortly.');
+        byId('deliveryModal').setAttribute('aria-hidden', 'true');
+      } catch (err) {
+        console.error(err);
+        toast('Error: ' + err.message);
+      }
+    });
+  }
+})();

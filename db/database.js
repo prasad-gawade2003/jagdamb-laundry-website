@@ -136,6 +136,12 @@ function initTables() {
   if (!existingColumns.some((col) => col.name === 'order_number')) {
     conn.prepare('ALTER TABLE orders ADD COLUMN order_number INTEGER').run();
   }
+  if (!existingColumns.some((col) => col.name === 'delivery_date')) {
+    conn.prepare('ALTER TABLE orders ADD COLUMN delivery_date TEXT DEFAULT ""').run();
+  }
+  if (!existingColumns.some((col) => col.name === 'delivery_time_slot')) {
+    conn.prepare('ALTER TABLE orders ADD COLUMN delivery_time_slot TEXT DEFAULT ""').run();
+  }
 
   fixMalformedPickupDates(conn);
 
@@ -384,9 +390,12 @@ function createOrder(order) {
 
 function getOrder(id) {
   const conn = getDb();
-  const order = conn.prepare('SELECT * FROM orders WHERE id = ?').get(id);
+  let order = conn.prepare('SELECT * FROM orders WHERE id = ?').get(id);
+  if (!order) {
+    order = conn.prepare('SELECT * FROM orders WHERE razorpay_order_id = ?').get(id);
+  }
   if (order) {
-    order.items = conn.prepare('SELECT * FROM order_items WHERE order_id = ?').all(id);
+    order.items = conn.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
   }
   return order;
 }
@@ -461,6 +470,16 @@ function updatePaymentStatus(id, paymentStatus, paymentId = '') {
       .run(paymentStatus, paymentId, id);
   }
   return result;
+}
+
+function updateRazorpayOrderId(id, razorpayOrderId) {
+  const conn = getDb();
+  return conn.prepare('UPDATE orders SET razorpay_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(razorpayOrderId, id);
+}
+
+function updateOrderDelivery(id, deliveryDate, deliveryTimeSlot) {
+  const conn = getDb();
+  return conn.prepare('UPDATE orders SET delivery_date = ?, delivery_time_slot = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(deliveryDate, deliveryTimeSlot, id);
 }
 
 function updateOrderNotes(id, notes) {
@@ -621,7 +640,7 @@ module.exports = {
   // Services
   upsertService, getAllServices, getService, deleteService,
   // Orders
-  createOrder, getOrder, getAllOrders, updateOrderStatus, updatePaymentStatus, updateOrderNotes, deleteOrder,
+  createOrder, getOrder, getAllOrders, updateOrderStatus, updatePaymentStatus, updateRazorpayOrderId, updateOrderDelivery, updateOrderNotes, deleteOrder,
   // Customers
   getAllCustomers, getCustomerOrders,
   // Reports

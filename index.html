@@ -375,6 +375,61 @@
         </div>
       </div>
     </div>
+    <!-- Delivery Slot Booking Modal -->
+    <div id="deliveryModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="deliveryBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="deliveryTitle" style="max-width: 500px;">
+        <button class="modal-close" id="deliveryClose" aria-label="Close dialog">×</button>
+        <div style="padding: 10px 4px;">
+          <h3 id="deliveryTitle" style="margin-top: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 8px; color: var(--primary);">
+            🚚 Schedule Your Delivery
+          </h3>
+          <p style="color: var(--muted); font-size: 0.88rem; margin-bottom: 20px; line-height: 1.4;">
+            Book a convenient time slot for us to deliver your clean clothes back from the store.
+          </p>
+
+          <form id="deliveryForm">
+            <!-- Hidden Input for Order ID -->
+            <input type="hidden" id="deliveryOrderId">
+
+            <div style="margin-bottom: 14px;">
+              <label for="deliveryCustomerName" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Customer Name</label>
+              <input type="text" id="deliveryCustomerName" readonly style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-hover); font-size: 0.9rem; color: var(--text);">
+            </div>
+
+            <div style="margin-bottom: 14px;">
+              <label for="deliveryPhone" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Phone Number</label>
+              <input type="text" id="deliveryPhone" readonly style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-hover); font-size: 0.9rem; color: var(--text);">
+            </div>
+
+            <div style="margin-bottom: 14px;">
+              <label for="deliveryAddress" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Delivery Address</label>
+              <textarea id="deliveryAddress" readonly style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-hover); font-size: 0.9rem; color: var(--text); height: 60px; resize: none; font-family: inherit;"></textarea>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+              <label for="deliveryDate" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Select Delivery Date</label>
+              <input type="date" id="deliveryDate" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; color: var(--text); background: var(--bg-input);">
+            </div>
+
+            <div style="margin-bottom: 22px;">
+              <label for="deliveryTimeSlot" style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Select Time Slot</label>
+              <select id="deliveryTimeSlot" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: var(--bg-input); color: var(--text);">
+                <option value="">-- Choose a slot --</option>
+                <option value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</option>
+                <option value="12:00 PM - 03:00 PM">12:00 PM - 03:00 PM</option>
+                <option value="03:00 PM - 06:00 PM">03:00 PM - 06:00 PM</option>
+                <option value="06:00 PM - 09:00 PM">06:00 PM - 09:00 PM</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn primary" style="width: 100%; padding: 12px; font-weight: 600; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: all var(--transition);">
+              Confirm Delivery Slot
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="script.js"></script>

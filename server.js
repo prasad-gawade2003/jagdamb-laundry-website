@@ -48,7 +48,7 @@ const WAHA_API_TOKEN = process.env.WAHA_API_TOKEN || '';
 const WAHA_FROM_PHONE = process.env.WAHA_FROM_PHONE || '';
 
 function isWhatsAppConfigured() {
-  return !!(WHATSAPP_API_TOKEN && WHATSAPP_PHONE_ID);
+  return !!(WHATSAPP_API_TOKEN && WHATSAPP_PHONE_ID) || !!(WAHA_ENABLED && WAHA_API_URL);
 }
 
 // Normalize phone to 91XXXXXXXXXX format for WhatsApp API
@@ -116,50 +116,43 @@ function formatWhatsAppReceipt(order, forLaundry = false) {
   return lines.join('\n');
 }
 
-// Send a WhatsApp text message via Cloud API
+// Format order completed notification message for WhatsApp
+function formatCompletedMessage(order, req) {
+  // Determine base URL dynamically from request, fallback to localhost:3000
+  let baseUrl = 'http://localhost:3000';
+  if (req && req.headers && req.get) {
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    baseUrl = `${protocol}://${req.get('host')}`;
+  }
+
+  return [
+    `🧺 *Jagdamb Laundry & Drycleaners*`,
+    ``,
+    `Dear *${order.customer_name || 'Customer'}*,`,
+    ``,
+    `Your order *#${order.id || order.order_number || ''}* is now *Completed* & ready! 🎉`,
+    ``,
+    `💰 *Total Bill:* ₹${order.total || 0}`,
+    `💳 *Payment Status:* ${order.payment_status || order.paymentStatus || 'Pending'}`,
+    `🏪 *Pick-up Store:* ${order.store_name || order.storeName || 'Jagdamb Laundry'}`,
+    ``,
+    `🚚 Please book a slot for us to deliver your clothes back home:`,
+    `🔗 ${baseUrl}/?action=schedule-delivery&order_id=${order.id}`,
+    ``,
+    `We hope you love our service! If you have any questions, feel free to contact us.`,
+    ``,
+    `📞 *Contact:* +91 79774 11572`,
+    ``,
+    `Have a great day! ✨`
+  ].join('\n');
+}
+
+// Send a WhatsApp text message via WAHA or Cloud API
 async function sendWhatsAppMessage(toPhone, message) {
   if (!isWhatsAppConfigured()) return false;
   const phone = normalizePhone(toPhone);
   if (!phone) return false;
 
-  try {
-    const url = `https://graph.facebook.com/v21.0/${WHATSAPP_PHONE_ID}/messages`;
-    const body = JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: phone,
-      type: 'text',
-      text: { preview_url: false, body: message }
-    });
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body
-    });
-
-    if (resp.ok) {
-      console.log(`✅ WhatsApp receipt sent to ${phone}`);
-      return true;
-    } else {
-      const errData = await resp.json().catch(() => ({}));
-      console.warn(`⚠️ WhatsApp send failed for ${phone}:`, errData.error?.message || resp.status);
-      return false;
-    }
-  } catch (err) {
-    console.warn('⚠️ WhatsApp API error:', err.message);
-    return false;
-  }
-}
-
-// Send receipts to both customer and laundry owner
-async function sendOrderReceipts(order) {
-  if (!isWhatsAppConfigured()) {
-    console.log('ℹ️ WhatsApp API not configured — skipping auto receipts');
-    return;
-  }
   // If WAHA is enabled and configured, use it first
   if (WAHA_ENABLED && WAHA_API_URL) {
     try {
@@ -187,14 +180,61 @@ async function sendOrderReceipts(order) {
     }
   }
 
+  // Otherwise try Meta Cloud API
+  if (WHATSAPP_API_TOKEN && WHATSAPP_PHONE_ID) {
+    try {
+      const url = `https://graph.facebook.com/v21.0/${WHATSAPP_PHONE_ID}/messages`;
+      const body = JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: { preview_url: false, body: message }
+      });
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body
+      });
+
+      if (resp.ok) {
+        console.log(`✅ WhatsApp message sent to ${phone}`);
+        return true;
+      } else {
+        const errData = await resp.json().catch(() => ({}));
+        console.warn(`⚠️ WhatsApp send failed for ${phone}:`, errData.error?.message || resp.status);
+        return false;
+      }
+    } catch (err) {
+      console.warn('⚠️ WhatsApp API error:', err.message);
+      return false;
+    }
+  }
+
+  return false;
+}
+
+// Send receipts to both customer and laundry owner
+async function sendOrderReceipts(order) {
+  if (!isWhatsAppConfigured()) {
+    console.log('ℹ️ WhatsApp API not configured — skipping auto receipts');
+    return;
+  }
 
   // Send receipt to CUSTOMER
   const customerMsg = formatWhatsAppReceipt(order, false);
-  sendWhatsAppMessage(order.phone, customerMsg);
+  sendWhatsAppMessage(order.phone, customerMsg).catch(err => {
+    console.warn('Error sending customer receipt:', err.message);
+  });
 
   // Send notification to LAUNDRY OWNER
   const laundryMsg = formatWhatsAppReceipt(order, true);
-  sendWhatsAppMessage(WHATSAPP_LAUNDRY_PHONE, laundryMsg);
+  sendWhatsAppMessage(WHATSAPP_LAUNDRY_PHONE, laundryMsg).catch(err => {
+    console.warn('Error sending laundry receipt:', err.message);
+  });
 }
 
 // ── Auth Middleware ──────────────────────────────────────────────────────────
@@ -367,7 +407,43 @@ app.put('/api/admin/orders/:id/status', authMiddleware, (req, res) => {
   const { order_status } = req.body;
   if (!order_status) return res.status(400).json({ error: 'order_status required' });
   db.updateOrderStatus(req.params.id, order_status);
+
+  if (order_status === 'Completed') {
+    try {
+      const order = db.getOrder(req.params.id);
+      if (order && order.phone) {
+        const msg = formatCompletedMessage(order);
+        sendWhatsAppMessage(order.phone, msg).catch(err => {
+          console.warn('Failed to send order completed WhatsApp:', err.message);
+        });
+      }
+    } catch (err) {
+      console.warn('Error sending completed notification:', err);
+    }
+  }
+
   res.json({ success: true });
+});
+
+// Admin: Send manual order completed WhatsApp notification
+app.post('/api/admin/orders/:id/send-completed-notification', authMiddleware, async (req, res) => {
+  try {
+    const order = db.getOrder(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order.phone) return res.status(400).json({ error: 'Customer phone number is missing' });
+
+    const msg = formatCompletedMessage(order);
+
+    const ok = await sendWhatsAppMessage(order.phone, msg);
+    if (ok) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to send WhatsApp message via provider' });
+    }
+  } catch (err) {
+    console.error('Error sending manual notification:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // Admin: Update payment status
@@ -406,6 +482,55 @@ app.get('/api/admin/customers/:phone/orders', authMiddleware, (req, res) => {
 // Public: get active services (for customer site)
 app.get('/api/services', (req, res) => {
   res.json(db.getAllServices(true));
+});
+
+// Public: get basic order details for delivery scheduling
+app.get('/api/public/orders/:id', (req, res) => {
+  try {
+    const order = db.getOrder(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json({
+      id: order.id,
+      customer_name: order.customer_name,
+      phone: order.phone,
+      address: order.address,
+      order_status: order.order_status,
+      delivery_date: order.delivery_date || '',
+      delivery_time_slot: order.delivery_time_slot || '',
+      payment_status: order.payment_status,
+      total: order.total
+    });
+  } catch (err) {
+    console.error('Error fetching public order details:', err);
+    res.status(500).json({ error: 'Failed to retrieve order details' });
+  }
+});
+
+// Public: schedule delivery slot for a completed order
+app.post('/api/public/orders/:id/schedule-delivery', async (req, res) => {
+  try {
+    const { delivery_date, delivery_time_slot } = req.body;
+    if (!delivery_date || !delivery_time_slot) {
+      return res.status(400).json({ error: 'delivery_date and delivery_time_slot are required' });
+    }
+
+    const order = db.getOrder(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Update order with delivery schedule
+    db.updateOrderDelivery(req.params.id, delivery_date, delivery_time_slot);
+
+    // Send confirmation message to customer via WhatsApp
+    const msg = `🧺 *Jagdamb Laundry & Drycleaners*\n\nYour delivery slot has been successfully booked! 🎉\n\n📋 *Order ID:* #${order.id}\n📅 *Delivery Date:* ${delivery_date}\n⏰ *Time Slot:* ${delivery_time_slot}\n\nWe will deliver your fresh clothes at the scheduled time! \n\n📞 *Contact:* +91 79774 11572`;
+    sendWhatsAppMessage(order.phone, msg).catch(err => {
+      console.warn('Failed to send delivery confirmation WhatsApp:', err.message);
+    });
+
+    res.json({ success: true, message: 'Delivery slot scheduled successfully' });
+  } catch (err) {
+    console.error('Error scheduling delivery:', err);
+    res.status(500).json({ error: 'Failed to schedule delivery' });
+  }
 });
 
 // Admin: get all services
@@ -537,6 +662,7 @@ app.post('/api/create-order', async (req, res) => {
 
     try {
       const razorpayOrder = await razorpay.orders.create(options);
+      await db.updateRazorpayOrderId(localOrderId, razorpayOrder.id);
       await db.updatePaymentStatus(localOrderId, 'Payment Waiting', undefined);
 
       res.json({
