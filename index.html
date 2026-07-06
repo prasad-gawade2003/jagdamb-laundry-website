@@ -15,6 +15,54 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <!-- JSON-LD Structured Data for Local Business SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "DryCleaningOrLaundryService",
+      "name": "Jagdamb Laundry & Drycleaners",
+      "image": "https://jagdamblaundry.com/assets/jagdamblogo.png",
+      "logo": "https://jagdamblaundry.com/assets/jagdamblogo.png",
+      "telephone": "+91 79774 11572",
+      "url": "https://jagdamblaundry.com",
+      "priceRange": "₹",
+      "paymentAccepted": "Cash, Credit Card, UPI, Mobile Payment",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "08:00",
+          "closes": "21:00"
+        }
+      ],
+      "address": [
+        {
+          "@type": "PostalAddress",
+          "streetAddress": "Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk",
+          "addressLocality": "Pune",
+          "addressRegion": "Maharashtra",
+          "postalCode": "411048",
+          "addressCountry": "IN"
+        },
+        {
+          "@type": "PostalAddress",
+          "streetAddress": "Shop No. 5, Three Jewels Society, Tilekar Nagar, Kondhwa Budruk",
+          "addressLocality": "Pune",
+          "addressRegion": "Maharashtra",
+          "postalCode": "411048",
+          "addressCountry": "IN"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -208,11 +256,11 @@
               <div class="summary-meta" id="summaryMeta">Add customer details to prepare order.</div>
             </aside>
             <div class="laundry-drop-scene" aria-hidden="true">
-              <img class="falling-cloth shirt" src="assets/clothes/shirt.png" alt="" />
-              <img class="falling-cloth pants" src="assets/clothes/pants.png" alt="" />
+              <img class="falling-cloth shirt" src="assets/clothes/shirt.png" alt="" loading="lazy" />
+              <img class="falling-cloth pants" src="assets/clothes/pants.png" alt="" loading="lazy" />
               <div class="laundry-bucket">
-                <img class="bucket-pile" src="assets/clothes-pile.png" alt="" />
-                <img src="assets/basket.png" alt="" />
+                <img class="bucket-pile" src="assets/clothes-pile.png" alt="" loading="lazy" />
+                <img src="assets/basket.png" alt="" loading="lazy" />
               </div>
             </div>
           </div>
@@ -237,7 +285,7 @@
             </div>
           </div>
           <div class="qr-panel">
-            <img class="qr-image" src="assets/QR.jpeg" alt="Shop UPI QR code" />
+            <img class="qr-image" src="assets/QR.jpeg" alt="Shop UPI QR code" loading="lazy" />
             <strong>Your UPI QR</strong>
             <p>Scan this QR with your UPI app to complete payment.</p>
           </div>
@@ -265,8 +313,8 @@
         <div>
           <p class="eyebrow">Contact</p>
           <h2>Jagdamb Laundry & Drycleaners</h2>
-          <p>📍Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048 </p>
-          <p>📍Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048 </p>
+          <p>📍 <strong>Sai Nagar:</strong> <a href="https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048" target="_blank" rel="noopener noreferrer">Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048</a></p>
+          <p>📍 <strong>Three Jewels:</strong> <a href="https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8" target="_blank" rel="noopener noreferrer">Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048</a></p>
           <p><strong>Phone:</strong> +91 79774 11572</p>
           <p><strong>Email:</strong> jagdambalaundry1@gmail.com</p>
           <p><strong>Hours:</strong> 8:00 AM - 9:00 PM</p>
@@ -275,16 +323,23 @@
             <a class="btn whatsapp" id="contactWhatsApp" href="#" target="_blank" rel="noreferrer">WhatsApp Us</a>
           </div>
         </div>
-        <div class="map-box" aria-label="Pune map">
-          <iframe
-            title="Jagdamb Laundry - Sai Nagar map"
-            src="https://www.google.com/maps?q=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048&output=embed"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            style="border:0; width:100%; height:360px;"
-          ></iframe>
-          <div class="map-actions">
-            <a href="https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048" target="_blank" rel="noopener noreferrer">Open highlighted location in Google Maps</a>
+        <div class="map-container">
+          <div class="map-tabs">
+            <button type="button" class="map-tab active" data-store="sai-nagar">Sai Nagar Map</button>
+            <button type="button" class="map-tab" data-store="three-jewels">Three Jewels Map</button>
+          </div>
+          <div class="map-box" aria-label="Pune map">
+            <iframe
+              id="contactMapIframe"
+              title="Jagdamb Laundry - Sai Nagar map"
+              src="https://www.google.com/maps?q=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048&output=embed"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              style="border:0; width:100%; height:320px;"
+            ></iframe>
+            <div class="map-actions">
+              <a id="contactMapLink" href="https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048" target="_blank" rel="noopener noreferrer">Open highlighted location in Google Maps</a>
+            </div>
           </div>
         </div>
       </section>
@@ -430,8 +485,8 @@
         </div>
       </div>
     </div>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="script.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="script.js" defer></script>
   </body>
 </html>

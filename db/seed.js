@@ -33,10 +33,10 @@ db.upsertStore({
   id: 'three-jewels',
   name: 'Jagdamb Laundry - Three Jewels',
   shortName: 'Three Jewels',
-  address: 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048',
+  address: 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048',
   phone: '+91 98216 75395',
   email: 'jagdambalaundry1@gmail.com',
-  mapUrl: 'https://www.google.com/maps/search/?api=1&query=Shop%20No.%205,%20Three%20Jewels%20Society,%20Kolte%20Patil%20Developers,%20Tilekar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048',
+  mapUrl: 'https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8',
   status: 'Open Now'
 });
 

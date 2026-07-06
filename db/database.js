@@ -160,7 +160,7 @@ function initTables() {
     // Seed default stores
     const insertStore = conn.prepare(`INSERT OR REPLACE INTO stores (id, name, short_name, address, phone, email, map_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     insertStore.run('sai-nagar', 'Jagdamb Laundry - Sai Nagar', 'Sai Nagar', 'Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048', 'Open Now');
-    insertStore.run('three-jewels', 'Jagdamb Laundry - Three Jewels', 'Three Jewels', 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://www.google.com/maps/search/?api=1&query=Shop%20No.%205,%20Three%20Jewels%20Society,%20Kolte%20Patil%20Developers,%20Tilekar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048', 'Open Now');
+    insertStore.run('three-jewels', 'Jagdamb Laundry - Three Jewels', 'Three Jewels', 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8', 'Open Now');
 
     // Seed default services
     const services = [

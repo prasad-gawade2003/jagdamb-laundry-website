@@ -29,10 +29,10 @@ let stores = [
     id: "three-jewels",
     name: "Jagdamb Laundry - Three Jewels",
     shortName: "Three Jewels",
-    address: "Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra ,411048",
+    address: "Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048",
     phone: "+91 98216 75395",
     email: "jagdambalaundry1@gmail.com",
-    mapUrl: "https://www.google.com/maps/search/?api=1&query=Shop%20No.%205,%20Three%20Jewels%20Society,%20Kolte%20Patil%20Developers,%20Tilekar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048",
+    mapUrl: "https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8",
     status: "Open Now"
   }
 ];
@@ -720,6 +720,43 @@ function setupEvents() {
     const el = document.getElementById(id);
     if (el) el.href = buildWhatsAppPhoneLink(shop.inquiryPhone, shop.inquiryMessage || quickMessage());
   });
+
+  // Contact section map tabs switching
+  const mapTabsContainer = document.querySelector(".map-tabs");
+  if (mapTabsContainer) {
+    mapTabsContainer.addEventListener("click", (event) => {
+      const tab = event.target.closest(".map-tab");
+      if (!tab) return;
+      
+      const storeId = tab.dataset.store;
+      
+      // Toggle active class on tabs
+      mapTabsContainer.querySelectorAll(".map-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      
+      // Find store info
+      const store = stores.find(s => s.id === storeId);
+      if (!store) return;
+      
+      // Update iframe and link
+      const iframe = byId("contactMapIframe");
+      const link = byId("contactMapLink");
+      
+      if (iframe) {
+        if (storeId === "sai-nagar") {
+          iframe.src = "https://www.google.com/maps?q=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048&output=embed";
+        } else if (storeId === "three-jewels") {
+          iframe.src = "https://www.google.com/maps?q=18.442471,73.884530&output=embed";
+        }
+        iframe.title = `Jagdamb Laundry - ${store.shortName || store.name} map`;
+      }
+      
+      if (link) {
+        link.href = store.mapUrl;
+        link.textContent = `Open ${store.shortName || store.name} location in Google Maps`;
+      }
+    });
+  }
 
   // Store selector from card click
   const storesGrid = byId("storesGrid");
