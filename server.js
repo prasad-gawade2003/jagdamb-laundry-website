@@ -10,7 +10,14 @@ const db = require('./db/database');
 dotenv.config();
 
 // Initialize database tables
-db.initTables();
+(async () => {
+  try {
+    await db.initTables();
+    console.log('Database tables verified/initialized.');
+  } catch (err) {
+    console.error('Database initialization error:', err);
+  }
+})();
 
 const app = express();
 app.use(cors());
@@ -254,13 +261,13 @@ function authMiddleware(req, res, next) {
 
 // ── Admin Auth Routes ───────────────────────────────────────────────────────
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
-    const admin = db.getAdminByUsername(username);
+    const admin = await db.getAdminByUsername(username);
 
 // Test route for verifying WAHA / Cloud API configuration
 app.post('/api/test-whatsapp', (req, res) => {
@@ -306,14 +313,19 @@ app.get('/api/admin/me', authMiddleware, (req, res) => {
 
 // ── Admin Management ────────────────────────────────────────────────────────
 
-app.get('/api/admin/admins', authMiddleware, (req, res) => {
+app.get('/api/admin/admins', authMiddleware, async (req, res) => {
   if (req.admin.role !== 'superadmin') {
     return res.status(403).json({ error: 'Only superadmin can manage admins' });
   }
-  res.json(db.getAllAdmins());
+  try {
+    res.json(await db.getAllAdmins());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.post('/api/admin/admins', authMiddleware, (req, res) => {
+app.post('/api/admin/admins', authMiddleware, async (req, res) => {
   if (req.admin.role !== 'superadmin') {
     return res.status(403).json({ error: 'Only superadmin can create admins' });
   }
@@ -321,33 +333,48 @@ app.post('/api/admin/admins', authMiddleware, (req, res) => {
   if (!username || !password || !displayName) {
     return res.status(400).json({ error: 'username, password and displayName are required' });
   }
-  db.createAdmin(username, password, displayName, storeId || '', role || 'admin');
-  res.json({ success: true });
+  try {
+    await db.createAdmin(username, password, displayName, storeId || '', role || 'admin');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.put('/api/admin/admins/:id/password', authMiddleware, (req, res) => {
+app.put('/api/admin/admins/:id/password', authMiddleware, async (req, res) => {
   const targetId = parseInt(req.params.id);
   if (req.admin.role !== 'superadmin' && req.admin.id !== targetId) {
     return res.status(403).json({ error: 'Not authorized' });
   }
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
-  db.updateAdminPassword(targetId, password);
-  res.json({ success: true });
+  try {
+    await db.updateAdminPassword(targetId, password);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.delete('/api/admin/admins/:id', authMiddleware, (req, res) => {
+app.delete('/api/admin/admins/:id', authMiddleware, async (req, res) => {
   if (req.admin.role !== 'superadmin') {
     return res.status(403).json({ error: 'Only superadmin can delete admins' });
   }
-  db.deleteAdmin(parseInt(req.params.id));
-  res.json({ success: true });
+  try {
+    await db.deleteAdmin(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ── Orders Routes ───────────────────────────────────────────────────────────
 
 // Customer places order (public endpoint)
-app.post('/api/orders', (req, res) => {
+app.post('/api/orders', async (req, res) => {
   try {
     const order = req.body;
     if (!order.customerName && !order.customer_name) {
@@ -356,7 +383,7 @@ app.post('/api/orders', (req, res) => {
     if (!order.phone) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
-    const orderId = db.createOrder(order);
+    const orderId = await db.createOrder(order);
 
     // Auto-send WhatsApp receipts to customer and laundry
     const receiptOrder = { ...order, id: orderId };
@@ -372,7 +399,7 @@ app.post('/api/orders', (req, res) => {
 });
 
 // Admin: Get all orders
-app.get('/api/admin/orders', authMiddleware, (req, res) => {
+app.get('/api/admin/orders', authMiddleware, async (req, res) => {
   try {
     const filters = {
       status: req.query.status || '',
@@ -385,7 +412,7 @@ app.get('/api/admin/orders', authMiddleware, (req, res) => {
     };
     // Clean empty filters
     Object.keys(filters).forEach(k => { if (!filters[k]) delete filters[k]; });
-    const orders = db.getAllOrders(filters);
+    const orders = await db.getAllOrders(filters);
     res.json(orders);
   } catch (err) {
     console.error('Error fetching orders:', err);
@@ -394,33 +421,43 @@ app.get('/api/admin/orders', authMiddleware, (req, res) => {
 });
 
 // Admin: Get single order
-app.get('/api/admin/orders/:id', authMiddleware, (req, res) => {
-  const order = db.getOrder(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  res.json(order);
+app.get('/api/admin/orders/:id', authMiddleware, async (req, res) => {
+  try {
+    const order = await db.getOrder(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json(order);
+  } catch (err) {
+    console.error('Error fetching order:', err);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
 });
 
 // Admin: Update order status
-app.put('/api/admin/orders/:id/status', authMiddleware, (req, res) => {
-  const { order_status } = req.body;
-  if (!order_status) return res.status(400).json({ error: 'order_status required' });
-  db.updateOrderStatus(req.params.id, order_status);
+app.put('/api/admin/orders/:id/status', authMiddleware, async (req, res) => {
+  try {
+    const { order_status } = req.body;
+    if (!order_status) return res.status(400).json({ error: 'order_status required' });
+    await db.updateOrderStatus(req.params.id, order_status);
 
-  if (order_status === 'Completed') {
-    try {
-      const order = db.getOrder(req.params.id);
-      if (order && order.phone) {
-        const msg = formatCompletedMessage(order);
-        sendWhatsAppMessage(order.phone, msg).catch(err => {
-          console.warn('Failed to send order completed WhatsApp:', err.message);
-        });
+    if (order_status === 'Completed') {
+      try {
+        const order = await db.getOrder(req.params.id);
+        if (order && order.phone) {
+          const msg = formatCompletedMessage(order);
+          sendWhatsAppMessage(order.phone, msg).catch(err => {
+            console.warn('Failed to send order completed WhatsApp:', err.message);
+          });
+        }
+      } catch (err) {
+        console.warn('Error sending completed notification:', err);
       }
-    } catch (err) {
-      console.warn('Error sending completed notification:', err);
     }
-  }
 
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating order status:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
 });
 
 // Admin: Send manual order completed WhatsApp notification
@@ -445,47 +482,77 @@ app.post('/api/admin/orders/:id/send-completed-notification', authMiddleware, as
 });
 
 // Admin: Update payment status
-app.put('/api/admin/orders/:id/payment', authMiddleware, (req, res) => {
-  const { payment_status, payment_id } = req.body;
-  if (!payment_status) return res.status(400).json({ error: 'payment_status required' });
-  db.updatePaymentStatus(req.params.id, payment_status, payment_id || '');
-  res.json({ success: true });
+app.put('/api/admin/orders/:id/payment', authMiddleware, async (req, res) => {
+  try {
+    const { payment_status, payment_id } = req.body;
+    if (!payment_status) return res.status(400).json({ error: 'payment_status required' });
+    await db.updatePaymentStatus(req.params.id, payment_status, payment_id || '');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating payment status:', err);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
 });
 
 // Admin: Update order notes
-app.put('/api/admin/orders/:id/notes', authMiddleware, (req, res) => {
-  const { notes } = req.body;
-  db.updateOrderNotes(req.params.id, notes || '');
-  res.json({ success: true });
+app.put('/api/admin/orders/:id/notes', authMiddleware, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    await db.updateOrderNotes(req.params.id, notes || '');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating order notes:', err);
+    res.status(500).json({ error: 'Failed to update order notes' });
+  }
 });
 
 // Admin: Delete order
-app.delete('/api/admin/orders/:id', authMiddleware, (req, res) => {
-  db.deleteOrder(req.params.id);
-  res.json({ success: true });
+app.delete('/api/admin/orders/:id', authMiddleware, async (req, res) => {
+  try {
+    await db.deleteOrder(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting order:', err);
+    res.status(500).json({ error: 'Failed to delete order' });
+  }
 });
 
 // ── Customers Routes ────────────────────────────────────────────────────────
 
-app.get('/api/admin/customers', authMiddleware, (req, res) => {
-  res.json(db.getAllCustomers());
+app.get('/api/admin/customers', authMiddleware, async (req, res) => {
+  try {
+    res.json(await db.getAllCustomers());
+  } catch (err) {
+    console.error('Error fetching customers:', err);
+    res.status(500).json({ error: 'Failed to fetch customers' });
+  }
 });
 
-app.get('/api/admin/customers/:phone/orders', authMiddleware, (req, res) => {
-  res.json(db.getCustomerOrders(req.params.phone));
+app.get('/api/admin/customers/:phone/orders', authMiddleware, async (req, res) => {
+  try {
+    res.json(await db.getCustomerOrders(req.params.phone));
+  } catch (err) {
+    console.error('Error fetching customer orders:', err);
+    res.status(500).json({ error: 'Failed to fetch customer orders' });
+  }
 });
 
 // ── Services Routes ─────────────────────────────────────────────────────────
 
 // Public: get active services (for customer site)
-app.get('/api/services', (req, res) => {
-  res.json(db.getAllServices(true));
+app.get('/api/services', async (req, res) => {
+  try {
+    res.json(await db.getAllServices(true));
+  } catch (err) {
+    console.error('Error fetching services:', err);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
 });
 
 // Public: get basic order details for delivery scheduling
-app.get('/api/public/orders/:id', (req, res) => {
+app.get('/api/public/orders/:id', async (req, res) => {
   try {
-    const order = db.getOrder(req.params.id);
+    const order = await db.getOrder(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     res.json({
       id: order.id,
@@ -512,11 +579,11 @@ app.post('/api/public/orders/:id/schedule-delivery', async (req, res) => {
       return res.status(400).json({ error: 'delivery_date and delivery_time_slot are required' });
     }
 
-    const order = db.getOrder(req.params.id);
+    const order = await db.getOrder(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     // Update order with delivery schedule
-    db.updateOrderDelivery(req.params.id, delivery_date, delivery_time_slot);
+    await db.updateOrderDelivery(req.params.id, delivery_date, delivery_time_slot);
 
     // Send confirmation message to customer via WhatsApp
     const msg = `🧺 *Jagdamb Laundry & Drycleaners*\n\nYour delivery slot has been successfully booked! 🎉\n\n📋 *Order ID:* #${order.id}\n📅 *Delivery Date:* ${delivery_date}\n⏰ *Time Slot:* ${delivery_time_slot}\n\nWe will deliver your fresh clothes at the scheduled time! \n\n📞 *Contact:* +91 79774 11572`;
@@ -532,13 +599,18 @@ app.post('/api/public/orders/:id/schedule-delivery', async (req, res) => {
 });
 
 // Admin: get all services
-app.get('/api/admin/services', authMiddleware, (req, res) => {
-  res.json(db.getAllServices(false));
+app.get('/api/admin/services', authMiddleware, async (req, res) => {
+  try {
+    res.json(await db.getAllServices(false));
+  } catch (err) {
+    console.error('Error fetching services:', err);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
 });
 
-app.post('/api/admin/services', authMiddleware, (req, res) => {
+app.post('/api/admin/services', authMiddleware, async (req, res) => {
   try {
-    db.upsertService(req.body);
+    await db.upsertService(req.body);
     res.json({ success: true });
   } catch (err) {
     console.error('Error creating service:', err);
@@ -546,9 +618,9 @@ app.post('/api/admin/services', authMiddleware, (req, res) => {
   }
 });
 
-app.put('/api/admin/services/:id', authMiddleware, (req, res) => {
+app.put('/api/admin/services/:id', authMiddleware, async (req, res) => {
   try {
-    db.upsertService({ ...req.body, id: parseInt(req.params.id) });
+    await db.upsertService({ ...req.body, id: parseInt(req.params.id) });
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating service:', err);
@@ -556,26 +628,41 @@ app.put('/api/admin/services/:id', authMiddleware, (req, res) => {
   }
 });
 
-app.delete('/api/admin/services/:id', authMiddleware, (req, res) => {
-  db.deleteService(parseInt(req.params.id));
-  res.json({ success: true });
+app.delete('/api/admin/services/:id', authMiddleware, async (req, res) => {
+  try {
+    await db.deleteService(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting service:', err);
+    res.status(500).json({ error: 'Failed to delete service' });
+  }
 });
 
 // ── Stores Routes ───────────────────────────────────────────────────────────
 
 // Public: get stores (for customer site)
-app.get('/api/stores', (req, res) => {
-  res.json(db.getAllStores());
+app.get('/api/stores', async (req, res) => {
+  try {
+    res.json(await db.getAllStores());
+  } catch (err) {
+    console.error('Error fetching stores:', err);
+    res.status(500).json({ error: 'Failed to fetch stores' });
+  }
 });
 
 // Admin: get all stores
-app.get('/api/admin/stores', authMiddleware, (req, res) => {
-  res.json(db.getAllStores());
+app.get('/api/admin/stores', authMiddleware, async (req, res) => {
+  try {
+    res.json(await db.getAllStores());
+  } catch (err) {
+    console.error('Error fetching stores:', err);
+    res.status(500).json({ error: 'Failed to fetch stores' });
+  }
 });
 
-app.post('/api/admin/stores', authMiddleware, (req, res) => {
+app.post('/api/admin/stores', authMiddleware, async (req, res) => {
   try {
-    db.upsertStore(req.body);
+    await db.upsertStore(req.body);
     res.json({ success: true });
   } catch (err) {
     console.error('Error creating store:', err);
@@ -583,9 +670,9 @@ app.post('/api/admin/stores', authMiddleware, (req, res) => {
   }
 });
 
-app.put('/api/admin/stores/:id', authMiddleware, (req, res) => {
+app.put('/api/admin/stores/:id', authMiddleware, async (req, res) => {
   try {
-    db.upsertStore({ ...req.body, id: req.params.id });
+    await db.upsertStore({ ...req.body, id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating store:', err);
@@ -593,35 +680,55 @@ app.put('/api/admin/stores/:id', authMiddleware, (req, res) => {
   }
 });
 
-app.delete('/api/admin/stores/:id', authMiddleware, (req, res) => {
-  db.deleteStore(req.params.id);
-  res.json({ success: true });
+app.delete('/api/admin/stores/:id', authMiddleware, async (req, res) => {
+  try {
+    await db.deleteStore(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting store:', err);
+    res.status(500).json({ error: 'Failed to delete store' });
+  }
 });
 
 // ── Reports Routes ──────────────────────────────────────────────────────────
 
-app.get('/api/admin/reports/summary', authMiddleware, (req, res) => {
-  const storeId = req.admin.role !== 'superadmin' ? req.admin.storeId : (req.query.store_id || null);
-  res.json(db.getDashboardSummary(storeId));
+app.get('/api/admin/reports/summary', authMiddleware, async (req, res) => {
+  try {
+    const storeId = req.admin.role !== 'superadmin' ? req.admin.storeId : (req.query.store_id || null);
+    res.json(await db.getDashboardSummary(storeId));
+  } catch (err) {
+    console.error('Error fetching summary:', err);
+    res.status(500).json({ error: 'Failed to fetch summary' });
+  }
 });
 
-app.get('/api/admin/reports/revenue', authMiddleware, (req, res) => {
-  const period = req.query.period || '30';
-  const storeId = req.admin.role !== 'superadmin' ? req.admin.storeId : (req.query.store_id || null);
-  res.json(db.getRevenueData(period, storeId));
+app.get('/api/admin/reports/revenue', authMiddleware, async (req, res) => {
+  try {
+    const period = req.query.period || '30';
+    const storeId = req.admin.role !== 'superadmin' ? req.admin.storeId : (req.query.store_id || null);
+    res.json(await db.getRevenueData(period, storeId));
+  } catch (err) {
+    console.error('Error fetching revenue data:', err);
+    res.status(500).json({ error: 'Failed to fetch revenue data' });
+  }
 });
 
 // ── Settings Routes ─────────────────────────────────────────────────────────
 
-app.get('/api/admin/settings', authMiddleware, (req, res) => {
-  res.json(db.getAllSettings());
+app.get('/api/admin/settings', authMiddleware, async (req, res) => {
+  try {
+    res.json(await db.getAllSettings());
+  } catch (err) {
+    console.error('Error fetching settings:', err);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
 });
 
-app.put('/api/admin/settings', authMiddleware, (req, res) => {
+app.put('/api/admin/settings', authMiddleware, async (req, res) => {
   try {
     const settings = req.body;
     for (const [key, value] of Object.entries(settings)) {
-      db.setSetting(key, value);
+      await db.setSetting(key, value);
     }
     res.json({ success: true });
   } catch (err) {
@@ -646,7 +753,7 @@ app.post('/api/create-order', async (req, res) => {
       return res.status(400).json({ error: 'Minimum amount must be 100 paise (Rs 1.00)' });
     }
 
-    const localOrderId = db.createOrder({
+    const localOrderId = await db.createOrder({
       ...order,
       paymentStatus: 'Payment Waiting',
       orderStatus: 'New',
@@ -671,7 +778,7 @@ app.post('/api/create-order', async (req, res) => {
         key_id: process.env.RAZORPAY_KEY_ID
       });
     } catch (razorpayErr) {
-      db.deleteOrder(localOrderId);
+      await db.deleteOrder(localOrderId);
       throw razorpayErr;
     }
   } catch (err) {
@@ -683,7 +790,7 @@ app.post('/api/create-order', async (req, res) => {
   }
 });
 
-app.post('/api/verify-payment', (req, res) => {
+app.post('/api/verify-payment', async (req, res) => {
   try {
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
@@ -700,9 +807,9 @@ app.post('/api/verify-payment', (req, res) => {
       // Update payment status in database if the order exists
       let orderData = null;
       try {
-        db.updatePaymentStatus(razorpay_order_id, 'Paid', razorpay_payment_id);
+        await db.updatePaymentStatus(razorpay_order_id, 'Paid', razorpay_payment_id);
         // Fetch full order to send WhatsApp receipt
-        orderData = db.getOrder(razorpay_order_id);
+        orderData = await db.getOrder(razorpay_order_id);
       } catch (e) {
         // Order might not exist in DB yet (old flow), that's ok
       }
@@ -724,6 +831,14 @@ app.post('/api/verify-payment', (req, res) => {
     console.error('Error verifying payment:', err);
     res.status(500).json({ error: 'Internal server error during verification' });
   }
+});
+
+// Public endpoint for front-end to get Supabase config (for Realtime subscription)
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL || '',
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || ''
+  });
 });
 
 // ── Start Server ────────────────────────────────────────────────────────────

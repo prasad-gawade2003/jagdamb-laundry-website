@@ -58,6 +58,56 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── Supabase Realtime ────────────────────────────────────────────────────────
+
+let supabaseClient = null;
+
+async function setupRealtime() {
+  try {
+    const resp = await fetch(API_BASE + '/api/config');
+    const config = await resp.json();
+    if (!config.supabaseUrl || !config.supabaseAnonKey) {
+      console.log('Supabase credentials not configured. Skipping Realtime updates.');
+      return;
+    }
+
+    // Initialize Supabase Client
+    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+    // Subscribe to public.orders table inserts and updates
+    supabaseClient.channel('admin-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        console.log('Received Realtime Order Change:', payload);
+
+        let title = 'Order Update';
+        if (payload.eventType === 'INSERT') {
+          title = 'New Order Placed! 🔔';
+        } else if (payload.eventType === 'UPDATE') {
+          title = `Order Status: ${payload.new.order_status}`;
+        }
+        
+        toast(`${title} (Order #${payload.new.order_number || payload.new.id})`);
+
+        // Dynamic refresh
+        const activeSection = document.querySelector('.nav-item.active');
+        if (activeSection) {
+          const section = activeSection.dataset.section;
+          if (section === 'overview') loadOverview();
+          if (section === 'orders') loadOrders();
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to Supabase Realtime.');
+        } else {
+          console.log('Realtime subscription status:', status);
+        }
+      });
+  } catch (err) {
+    console.error('Error during Supabase Realtime setup:', err);
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 function init() {
@@ -80,7 +130,10 @@ function init() {
   loadOverview();
   loadStoreFilters();
 
-  // Polling for new orders every 30s
+  // Setup live updates via Supabase
+  setupRealtime();
+
+  // Polling for new orders every 30s (backup fallback)
   setInterval(() => {
     const activeSection = document.querySelector('.nav-item.active');
     if (activeSection) {

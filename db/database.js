@@ -1,166 +1,203 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-const DB_PATH = process.env.VERCEL
-  ? '/tmp/jld_laundry.db'
-  : path.join(__dirname, 'jld_laundry.db');
-
-let db;
+let pool;
 
 function getDb() {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+  if (!pool) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      console.warn("WARNING: DATABASE_URL is not set. Database queries will fail.");
+    }
+    const isLocal = !connectionString || connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+    pool = new Pool({
+      connectionString,
+      ssl: isLocal ? false : {
+        rejectUnauthorized: false
+      }
+    });
   }
-  return db;
+  return pool;
 }
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 
-function fixMalformedPickupDates(conn) {
-  const rows = conn.prepare("SELECT id, pickup_date FROM orders WHERE pickup_date != ''").all();
-  const updateStmt = conn.prepare('UPDATE orders SET pickup_date = ? WHERE id = ?');
-  const normalize = (value) => {
-    if (!value) return '';
-    const dateStr = String(value).trim();
-    if (!dateStr) return '';
+async function fixMalformedPickupDates(pool) {
+  try {
+    const res = await pool.query("SELECT id, pickup_date FROM orders WHERE pickup_date != '' AND pickup_date IS NOT NULL");
+    const rows = res.rows;
+    const normalize = (value) => {
+      if (!value) return '';
+      const dateStr = String(value).trim();
+      if (!dateStr) return '';
 
-    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-    const dmyMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
-    if (dmyMatch) return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+      const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+      const dmyMatch = dateStr.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+      if (dmyMatch) return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
 
-    const parsed = new Date(dateStr);
-    if (!isNaN(parsed)) {
-      const year = parsed.getUTCFullYear();
-      if (year >= 1000 && year <= 9999) {
-        return parsed.toISOString().slice(0, 10);
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed)) {
+        const year = parsed.getUTCFullYear();
+        if (year >= 1000 && year <= 9999) {
+          return parsed.toISOString().slice(0, 10);
+        }
       }
-    }
-    return '';
-  };
+      return '';
+    };
 
-  const update = conn.transaction((items) => {
-    for (const item of items) {
-      const normalized = normalize(item.pickup_date);
-      if (normalized !== item.pickup_date) {
-        updateStmt.run(normalized, item.id);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const item of rows) {
+        const normalized = normalize(item.pickup_date);
+        if (normalized !== item.pickup_date) {
+          await client.query('UPDATE orders SET pickup_date = $1 WHERE id = $2', [normalized, item.id]);
+        }
       }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
     }
-  });
-  update(rows);
+  } catch (err) {
+    console.error('Error fixing malformed pickup dates:', err.message);
+  }
 }
 
-function initTables() {
-  const conn = getDb();
+async function initTables() {
+  const pool = getDb();
 
-  conn.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS admins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      display_name TEXT NOT NULL,
-      store_id TEXT DEFAULT '',
-      role TEXT DEFAULT 'admin',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      display_name VARCHAR(255) NOT NULL,
+      store_id VARCHAR(255) DEFAULT '',
+      role VARCHAR(255) DEFAULT 'admin',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS stores (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      short_name TEXT DEFAULT '',
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      short_name VARCHAR(255) DEFAULT '',
       address TEXT DEFAULT '',
-      phone TEXT DEFAULT '',
-      email TEXT DEFAULT '',
+      phone VARCHAR(255) DEFAULT '',
+      email VARCHAR(255) DEFAULT '',
       map_url TEXT DEFAULT '',
-      status TEXT DEFAULT 'Open Now',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      status VARCHAR(255) DEFAULT 'Open Now',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS services (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
       description TEXT DEFAULT '',
       price REAL DEFAULT 0,
-      unit TEXT DEFAULT '',
-      icon TEXT DEFAULT '',
+      unit VARCHAR(255) DEFAULT '',
+      icon VARCHAR(255) DEFAULT '',
       active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS orders (
-      id TEXT PRIMARY KEY,
+      id VARCHAR(255) PRIMARY KEY,
       order_number INTEGER UNIQUE,
-      store_id TEXT DEFAULT '',
-      store_name TEXT DEFAULT '',
-      customer_name TEXT NOT NULL,
-      phone TEXT NOT NULL,
+      store_id VARCHAR(255) DEFAULT '',
+      store_name VARCHAR(255) DEFAULT '',
+      customer_name VARCHAR(255) NOT NULL,
+      phone VARCHAR(255) NOT NULL,
       address TEXT DEFAULT '',
-      pickup_date TEXT DEFAULT '',
-      time_slot TEXT DEFAULT '',
-      payment_method TEXT DEFAULT '',
-      payment_status TEXT DEFAULT 'Pending',
-      order_status TEXT DEFAULT 'New',
+      pickup_date VARCHAR(255) DEFAULT '',
+      time_slot VARCHAR(255) DEFAULT '',
+      payment_method VARCHAR(255) DEFAULT '',
+      payment_status VARCHAR(255) DEFAULT 'Pending',
+      order_status VARCHAR(255) DEFAULT 'New',
       subtotal REAL DEFAULT 0,
       pickup_charge REAL DEFAULT 0,
       total REAL DEFAULT 0,
-      location_lat TEXT DEFAULT '',
-      location_lng TEXT DEFAULT '',
+      location_lat VARCHAR(255) DEFAULT '',
+      location_lng VARCHAR(255) DEFAULT '',
       location_map_url TEXT DEFAULT '',
       notes TEXT DEFAULT '',
-      razorpay_order_id TEXT DEFAULT '',
-      razorpay_payment_id TEXT DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      razorpay_order_id VARCHAR(255) DEFAULT '',
+      razorpay_payment_id VARCHAR(255) DEFAULT '',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      delivery_date VARCHAR(255) DEFAULT '',
+      delivery_time_slot VARCHAR(255) DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id TEXT NOT NULL,
-      item_name TEXT NOT NULL,
-      service TEXT DEFAULT '',
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      item_name VARCHAR(255) NOT NULL,
+      service VARCHAR(255) DEFAULT '',
       qty INTEGER DEFAULT 1,
-      price REAL DEFAULT 0,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+      price REAL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
+      key VARCHAR(255) PRIMARY KEY,
       value TEXT DEFAULT ''
     );
   `);
 
-  const existingColumns = conn.prepare("PRAGMA table_info(orders)").all();
-  if (!existingColumns.some((col) => col.name === 'order_number')) {
-    conn.prepare('ALTER TABLE orders ADD COLUMN order_number INTEGER').run();
-  }
-  if (!existingColumns.some((col) => col.name === 'delivery_date')) {
-    conn.prepare('ALTER TABLE orders ADD COLUMN delivery_date TEXT DEFAULT ""').run();
-  }
-  if (!existingColumns.some((col) => col.name === 'delivery_time_slot')) {
-    conn.prepare('ALTER TABLE orders ADD COLUMN delivery_time_slot TEXT DEFAULT ""').run();
+  // Enable Realtime for the orders table in Supabase publication
+  try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_publication_tables 
+          WHERE pubname = 'supabase_realtime' AND tablename = 'orders'
+        ) THEN
+          NULL;
+        ELSE
+          ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+        END IF;
+      END $$;
+    `);
+  } catch (e) {
+    console.log('Realtime publication setup skipped or not supported:', e.message);
   }
 
-  fixMalformedPickupDates(conn);
+  await fixMalformedPickupDates(pool);
 
   // Auto-seed default database if no admins exist
-  const adminCount = conn.prepare('SELECT COUNT(*) as count FROM admins').get().count;
+  const res = await pool.query('SELECT COUNT(*) as count FROM admins');
+  const adminCount = parseInt(res.rows[0].count);
   if (adminCount === 0) {
     console.log('Database empty. Seeding default data...');
     
     // Seed default admins
     const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
     const hash = bcrypt.hashSync(defaultPassword, 10);
-    conn.prepare(`INSERT OR IGNORE INTO admins (username, password, display_name, store_id, role) VALUES (?, ?, ?, ?, ?)`).run('admin', hash, 'Master Admin', '', 'superadmin');
-    conn.prepare(`INSERT OR IGNORE INTO admins (username, password, display_name, store_id, role) VALUES (?, ?, ?, ?, ?)`).run('sainagar', hash, 'Sai Nagar Admin', 'sai-nagar', 'admin');
-    conn.prepare(`INSERT OR IGNORE INTO admins (username, password, display_name, store_id, role) VALUES (?, ?, ?, ?, ?)`).run('threejewels', hash, 'Three Jewels Admin', 'three-jewels', 'admin');
+    
+    await pool.query(`INSERT INTO admins (username, password, display_name, store_id, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`, ['admin', hash, 'Master Admin', '', 'superadmin']);
+    await pool.query(`INSERT INTO admins (username, password, display_name, store_id, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`, ['sainagar', hash, 'Sai Nagar Admin', 'sai-nagar', 'admin']);
+    await pool.query(`INSERT INTO admins (username, password, display_name, store_id, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`, ['threejewels', hash, 'Three Jewels Admin', 'three-jewels', 'admin']);
 
     // Seed default stores
-    const insertStore = conn.prepare(`INSERT OR REPLACE INTO stores (id, name, short_name, address, phone, email, map_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    insertStore.run('sai-nagar', 'Jagdamb Laundry - Sai Nagar', 'Sai Nagar', 'Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048', 'Open Now');
-    insertStore.run('three-jewels', 'Jagdamb Laundry - Three Jewels', 'Three Jewels', 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8', 'Open Now');
+    await pool.query(`
+      INSERT INTO stores (id, name, short_name, address, phone, email, map_url, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO UPDATE SET
+        name=EXCLUDED.name, short_name=EXCLUDED.short_name, address=EXCLUDED.address,
+        phone=EXCLUDED.phone, email=EXCLUDED.email, map_url=EXCLUDED.map_url, status=EXCLUDED.status
+    `, ['sai-nagar', 'Jagdamb Laundry - Sai Nagar', 'Sai Nagar', 'Jagdamb Laundry, Sai Nagar, Sukhsagar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://www.google.com/maps/search/?api=1&query=Jagdamb%20Laundry,%20Sai%20Nagar,%20Sukhsagar%20Nagar,%20Kondhwa%20Budruk,%20Pune,%20Maharashtra%20411048', 'Open Now']);
+
+    await pool.query(`
+      INSERT INTO stores (id, name, short_name, address, phone, email, map_url, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO UPDATE SET
+        name=EXCLUDED.name, short_name=EXCLUDED.short_name, address=EXCLUDED.address,
+        phone=EXCLUDED.phone, email=EXCLUDED.email, map_url=EXCLUDED.map_url, status=EXCLUDED.status
+    `, ['three-jewels', 'Jagdamb Laundry - Three Jewels', 'Three Jewels', 'Shop No. 5, Three Jewels Society, Kolte Patil Developers, Tilekar Nagar, Kondhwa Budruk, Pune, Maharashtra 411048', '+91 98216 75395', 'jagdambalaundry1@gmail.com', 'https://maps.app.goo.gl/nQ9tuvkAsnhJzGvE8', 'Open Now']);
 
     // Seed default services
     const services = [
@@ -173,29 +210,41 @@ function initTables() {
       { name: 'Shoes Cleaning', desc: 'Special handling for designer garments.', price: 200, unit: '' },
       { name: 'Curtain Cleaning', desc: 'Deep cleaning for home curtains.', price: 100, unit: '' },
     ];
-    const insertService = conn.prepare(`INSERT OR REPLACE INTO services (name, description, price, unit, active) VALUES (?, ?, ?, ?, 1)`);
     for (const s of services) {
-      insertService.run(s.name, s.desc, s.price, s.unit);
+      const check = await pool.query('SELECT 1 FROM services WHERE name = $1', [s.name]);
+      if (check.rowCount === 0) {
+        await pool.query(`
+          INSERT INTO services (name, description, price, unit, active)
+          VALUES ($1, $2, $3, $4, 1)
+        `, [s.name, s.desc, s.price, s.unit]);
+      }
     }
 
     // Seed default settings
-    const insertSetting = conn.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`);
-    insertSetting.run('shop_name', 'Jagdamb Laundry & Drycleaners');
-    insertSetting.run('shop_phone', '+91 79774 11572');
-    insertSetting.run('whatsapp_link', '917977411572');
-    insertSetting.run('inquiry_phone', '917977411572');
-    insertSetting.run('upi_id', 'gawadeprasad03-2@okaxis');
-    insertSetting.run('pickup_charge', '0');
-    insertSetting.run('original_pickup_charge', '49');
+    const settings = [
+      { key: 'shop_name', value: 'Jagdamb Laundry & Drycleaners' },
+      { key: 'shop_phone', value: '+91 79774 11572' },
+      { key: 'whatsapp_link', value: '917977411572' },
+      { key: 'inquiry_phone', value: '917977411572' },
+      { key: 'upi_id', value: 'gawadeprasad03-2@okaxis' },
+      { key: 'pickup_charge', value: '0' },
+      { key: 'original_pickup_charge', value: '49' }
+    ];
+    for (const set of settings) {
+      await pool.query(`
+        INSERT INTO settings (key, value) VALUES ($1, $2)
+        ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value
+      `, [set.key, set.value]);
+    }
     
     console.log('Database seeded with default values.');
   }
 }
 
-function getNextOrderNumber() {
-  const conn = getDb();
-  const row = conn.prepare('SELECT MAX(order_number) as maxOrder FROM orders').get();
-  return (row?.maxOrder || 0) + 1;
+async function getNextOrderNumber() {
+  const pool = getDb();
+  const res = await pool.query('SELECT MAX(order_number) as "maxOrder" FROM orders');
+  return (res.rows[0]?.maxOrder || 0) + 1;
 }
 
 function normalizeDate(value) {
@@ -230,125 +279,127 @@ function normalizeDate(value) {
 
 // ── Admins ───────────────────────────────────────────────────────────────────
 
-function createAdmin(username, password, displayName, storeId = '', role = 'admin') {
-  const conn = getDb();
+async function createAdmin(username, password, displayName, storeId = '', role = 'admin') {
+  const pool = getDb();
   const hash = bcrypt.hashSync(password, 10);
-  const stmt = conn.prepare(
-    `INSERT OR IGNORE INTO admins (username, password, display_name, store_id, role) VALUES (?, ?, ?, ?, ?)`
+  return await pool.query(
+    `INSERT INTO admins (username, password, display_name, store_id, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`,
+    [username, hash, displayName, storeId, role]
   );
-  return stmt.run(username, hash, displayName, storeId, role);
 }
 
-function getAdminByUsername(username) {
-  const conn = getDb();
-  return conn.prepare('SELECT * FROM admins WHERE username = ?').get(username);
+async function getAdminByUsername(username) {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
+  return res.rows[0];
 }
 
 function verifyAdminPassword(admin, password) {
   return bcrypt.compareSync(password, admin.password);
 }
 
-function getAllAdmins() {
-  const conn = getDb();
-  return conn.prepare('SELECT id, username, display_name, store_id, role, created_at FROM admins').all();
+async function getAllAdmins() {
+  const pool = getDb();
+  const res = await pool.query('SELECT id, username, display_name, store_id, role, created_at FROM admins');
+  return res.rows;
 }
 
-function updateAdminPassword(id, newPassword) {
-  const conn = getDb();
+async function updateAdminPassword(id, newPassword) {
+  const pool = getDb();
   const hash = bcrypt.hashSync(newPassword, 10);
-  return conn.prepare('UPDATE admins SET password = ? WHERE id = ?').run(hash, id);
+  return await pool.query('UPDATE admins SET password = $1 WHERE id = $2', [hash, id]);
 }
 
-function deleteAdmin(id) {
-  const conn = getDb();
-  return conn.prepare('DELETE FROM admins WHERE id = ?').run(id);
+async function deleteAdmin(id) {
+  const pool = getDb();
+  return await pool.query('DELETE FROM admins WHERE id = $1', [id]);
 }
 
 // ── Stores ───────────────────────────────────────────────────────────────────
 
-function upsertStore(store) {
-  const conn = getDb();
-  const stmt = conn.prepare(`
+async function upsertStore(store) {
+  const pool = getDb();
+  return await pool.query(`
     INSERT INTO stores (id, name, short_name, address, phone, email, map_url, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      name=excluded.name, short_name=excluded.short_name, address=excluded.address,
-      phone=excluded.phone, email=excluded.email, map_url=excluded.map_url, status=excluded.status
-  `);
-  return stmt.run(store.id, store.name, store.shortName || store.short_name || '',
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (id) DO UPDATE SET
+      name=EXCLUDED.name, short_name=EXCLUDED.short_name, address=EXCLUDED.address,
+      phone=EXCLUDED.phone, email=EXCLUDED.email, map_url=EXCLUDED.map_url, status=EXCLUDED.status
+  `, [store.id, store.name, store.shortName || store.short_name || '',
     store.address || '', store.phone || '', store.email || '',
-    store.mapUrl || store.map_url || '', store.status || 'Open Now');
+    store.mapUrl || store.map_url || '', store.status || 'Open Now']);
 }
 
-function getAllStores() {
-  const conn = getDb();
-  return conn.prepare('SELECT * FROM stores ORDER BY created_at').all();
+async function getAllStores() {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM stores ORDER BY created_at');
+  return res.rows;
 }
 
-function getStore(id) {
-  const conn = getDb();
-  return conn.prepare('SELECT * FROM stores WHERE id = ?').get(id);
+async function getStore(id) {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM stores WHERE id = $1', [id]);
+  return res.rows[0];
 }
 
-function deleteStore(id) {
-  const conn = getDb();
-  return conn.prepare('DELETE FROM stores WHERE id = ?').run(id);
+async function deleteStore(id) {
+  const pool = getDb();
+  return await pool.query('DELETE FROM stores WHERE id = $1', [id]);
 }
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
-function upsertService(service) {
-  const conn = getDb();
+async function upsertService(service) {
+  const pool = getDb();
   if (service.id) {
-    const stmt = conn.prepare(`
-      UPDATE services SET name=?, description=?, price=?, unit=?, icon=?, active=? WHERE id=?
-    `);
-    return stmt.run(service.name, service.description || service.desc || '',
-      service.price || 0, service.unit || '', service.icon || '', service.active !== undefined ? service.active : 1, service.id);
+    return await pool.query(`
+      UPDATE services SET name=$1, description=$2, price=$3, unit=$4, icon=$5, active=$6 WHERE id=$7
+    `, [service.name, service.description || service.desc || '',
+      service.price || 0, service.unit || '', service.icon || '', service.active !== undefined ? service.active : 1, service.id]);
   } else {
-    const stmt = conn.prepare(`
-      INSERT INTO services (name, description, price, unit, icon, active) VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    return stmt.run(service.name, service.description || service.desc || '',
-      service.price || 0, service.unit || '', service.icon || '', 1);
+    return await pool.query(`
+      INSERT INTO services (name, description, price, unit, icon, active) VALUES ($1, $2, $3, $4, $5, $6)
+    `, [service.name, service.description || service.desc || '',
+      service.price || 0, service.unit || '', service.icon || '', 1]);
   }
 }
 
-function getAllServices(activeOnly = false) {
-  const conn = getDb();
+async function getAllServices(activeOnly = false) {
+  const pool = getDb();
   if (activeOnly) {
-    return conn.prepare('SELECT * FROM services WHERE active = 1 ORDER BY id').all();
+    const res = await pool.query('SELECT * FROM services WHERE active = 1 ORDER BY id');
+    return res.rows;
   }
-  return conn.prepare('SELECT * FROM services ORDER BY id').all();
+  const res = await pool.query('SELECT * FROM services ORDER BY id');
+  return res.rows;
 }
 
-function getService(id) {
-  const conn = getDb();
-  return conn.prepare('SELECT * FROM services WHERE id = ?').get(id);
+async function getService(id) {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
+  return res.rows[0];
 }
 
-function deleteService(id) {
-  const conn = getDb();
-  return conn.prepare('DELETE FROM services WHERE id = ?').run(id);
+async function deleteService(id) {
+  const pool = getDb();
+  return await pool.query('DELETE FROM services WHERE id = $1', [id]);
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
 
-function createOrder(order) {
-  const conn = getDb();
-  const orderNumber = order.order_number || getNextOrderNumber();
+async function createOrder(order) {
+  const pool = getDb();
+  const orderNumber = order.order_number || await getNextOrderNumber();
   const orderId = order.id || String(orderNumber).padStart(2, '0');
   const pickupDate = normalizeDate(order.pickupDate || order.pickup_date || '');
 
-  const stmt = conn.prepare(`
+  await pool.query(`
     INSERT INTO orders (id, order_number, store_id, store_name, customer_name, phone, address,
       pickup_date, time_slot, payment_method, payment_status, order_status,
       subtotal, pickup_charge, total, location_lat, location_lng, location_map_url,
       notes, razorpay_order_id, razorpay_payment_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+  `, [
     orderId,
     orderNumber,
     order.storeId || order.store_id || '',
@@ -370,134 +421,148 @@ function createOrder(order) {
     order.notes || '',
     order.razorpay_order_id || '',
     order.razorpay_payment_id || ''
-  );
+  ]);
 
   // Insert order items
   if (order.items && order.items.length) {
-    const itemStmt = conn.prepare(
-      `INSERT INTO order_items (order_id, item_name, service, qty, price) VALUES (?, ?, ?, ?, ?)`
-    );
-    const insertItems = conn.transaction((items) => {
-      for (const item of items) {
-        itemStmt.run(orderId, item.item || item.item_name || '', item.service || '', item.qty || 1, item.price || 0);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const item of order.items) {
+        await client.query(
+          `INSERT INTO order_items (order_id, item_name, service, qty, price) VALUES ($1, $2, $3, $4, $5)`,
+          [orderId, item.item || item.item_name || '', item.service || '', item.qty || 1, item.price || 0]
+        );
       }
-    });
-    insertItems(order.items);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   return orderId;
 }
 
-function getOrder(id) {
-  const conn = getDb();
-  let order = conn.prepare('SELECT * FROM orders WHERE id = ?').get(id);
+async function getOrder(id) {
+  const pool = getDb();
+  let res = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+  let order = res.rows[0];
   if (!order) {
-    order = conn.prepare('SELECT * FROM orders WHERE razorpay_order_id = ?').get(id);
+    res = await pool.query('SELECT * FROM orders WHERE razorpay_order_id = $1', [id]);
+    order = res.rows[0];
   }
   if (order) {
-    order.items = conn.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
+    const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    order.items = itemsRes.rows;
   }
   return order;
 }
 
-function getAllOrders(filters = {}) {
-  const conn = getDb();
+async function getAllOrders(filters = {}) {
+  const pool = getDb();
   let sql = 'SELECT * FROM orders WHERE 1=1';
   const params = [];
+  let index = 1;
 
   if (filters.status) {
-    sql += ' AND order_status = ?';
+    sql += ` AND order_status = $${index++}`;
     params.push(filters.status);
   }
   if (filters.store_id) {
-    sql += ' AND store_id = ?';
+    sql += ` AND store_id = $${index++}`;
     params.push(filters.store_id);
   }
   if (filters.payment_status) {
-    sql += ' AND payment_status = ?';
+    sql += ` AND payment_status = $${index++}`;
     params.push(filters.payment_status);
   }
   if (filters.date_from) {
-    sql += ' AND pickup_date >= ?';
+    sql += ` AND pickup_date >= $${index++}`;
     params.push(filters.date_from);
   }
   if (filters.date_to) {
-    sql += ' AND pickup_date <= ?';
+    sql += ` AND pickup_date <= $${index++}`;
     params.push(filters.date_to);
   }
   if (filters.search) {
-    sql += ' AND (customer_name LIKE ? OR phone LIKE ? OR id LIKE ?)';
+    sql += ` AND (customer_name ILIKE $${index} OR phone LIKE $${index} OR id LIKE $${index})`;
+    index++;
     const term = `%${filters.search}%`;
-    params.push(term, term, term);
+    params.push(term);
   }
 
   sql += ' ORDER BY created_at DESC';
 
   if (filters.limit) {
-    sql += ' LIMIT ?';
+    sql += ` LIMIT $${index++}`;
     params.push(filters.limit);
   }
 
-  const orders = conn.prepare(sql).all(...params);
+  const ordersRes = await pool.query(sql, params);
+  const orders = ordersRes.rows;
 
-  // Attach items for each order
-  const itemStmt = conn.prepare('SELECT * FROM order_items WHERE order_id = ?');
   for (const order of orders) {
-    order.items = itemStmt.all(order.id);
+    const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    order.items = itemsRes.rows;
   }
 
   return orders;
 }
 
-function updateOrderStatus(id, orderStatus) {
-  const conn = getDb();
-  return conn.prepare('UPDATE orders SET order_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(orderStatus, id);
+async function updateOrderStatus(id, orderStatus) {
+  const pool = getDb();
+  return await pool.query('UPDATE orders SET order_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [orderStatus, id]);
 }
 
-function updatePaymentStatus(id, paymentStatus, paymentId = '') {
-  const conn = getDb();
-  let sql = 'UPDATE orders SET payment_status = ?, updated_at = CURRENT_TIMESTAMP';
+async function updatePaymentStatus(id, paymentStatus, paymentId = '') {
+  const pool = getDb();
+  let sql = 'UPDATE orders SET payment_status = $1, updated_at = CURRENT_TIMESTAMP';
   const params = [paymentStatus];
+  let index = 2;
   if (paymentId) {
-    sql += ', razorpay_payment_id = ?';
+    sql += `, razorpay_payment_id = $${index++}`;
     params.push(paymentId);
   }
-  sql += ' WHERE id = ?';
+  sql += ` WHERE id = $${index++}`;
   params.push(id);
-  const result = conn.prepare(sql).run(...params);
-  if (result.changes === 0 && paymentId) {
-    return conn.prepare('UPDATE orders SET payment_status = ?, updated_at = CURRENT_TIMESTAMP, razorpay_payment_id = ? WHERE razorpay_order_id = ?')
-      .run(paymentStatus, paymentId, id);
+  
+  const result = await pool.query(sql, params);
+  if (result.rowCount === 0 && paymentId) {
+    return await pool.query('UPDATE orders SET payment_status = $1, updated_at = CURRENT_TIMESTAMP, razorpay_payment_id = $2 WHERE razorpay_order_id = $3',
+      [paymentStatus, paymentId, id]);
   }
   return result;
 }
 
-function updateRazorpayOrderId(id, razorpayOrderId) {
-  const conn = getDb();
-  return conn.prepare('UPDATE orders SET razorpay_order_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(razorpayOrderId, id);
+async function updateRazorpayOrderId(id, razorpayOrderId) {
+  const pool = getDb();
+  return await pool.query('UPDATE orders SET razorpay_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [razorpayOrderId, id]);
 }
 
-function updateOrderDelivery(id, deliveryDate, deliveryTimeSlot) {
-  const conn = getDb();
-  return conn.prepare('UPDATE orders SET delivery_date = ?, delivery_time_slot = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(deliveryDate, deliveryTimeSlot, id);
+async function updateOrderDelivery(id, deliveryDate, deliveryTimeSlot) {
+  const pool = getDb();
+  return await pool.query('UPDATE orders SET delivery_date = $1, delivery_time_slot = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [deliveryDate, deliveryTimeSlot, id]);
 }
 
-function updateOrderNotes(id, notes) {
-  const conn = getDb();
-  return conn.prepare('UPDATE orders SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, id);
+async function updateOrderNotes(id, notes) {
+  const pool = getDb();
+  return await pool.query('UPDATE orders SET notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [notes, id]);
 }
 
-function deleteOrder(id) {
-  const conn = getDb();
-  conn.prepare('DELETE FROM order_items WHERE order_id = ?').run(id);
-  return conn.prepare('DELETE FROM orders WHERE id = ?').run(id);
+async function deleteOrder(id) {
+  const pool = getDb();
+  await pool.query('DELETE FROM order_items WHERE order_id = $1', [id]);
+  return await pool.query('DELETE FROM orders WHERE id = $1', [id]);
 }
 
 // ── Customers (derived from orders) ──────────────────────────────────────────
 
-function getAllCustomers() {
-  const conn = getDb();
-  return conn.prepare(`
+async function getAllCustomers() {
+  const pool = getDb();
+  const res = await pool.query(`
     SELECT
       phone,
       customer_name,
@@ -506,73 +571,103 @@ function getAllCustomers() {
       SUM(total) as total_spent,
       MAX(created_at) as last_order_date
     FROM orders
-    GROUP BY phone
+    GROUP BY phone, customer_name, address
     ORDER BY last_order_date DESC
-  `).all();
+  `);
+  return res.rows;
 }
 
-function getCustomerOrders(phone) {
-  const conn = getDb();
-  const orders = conn.prepare('SELECT * FROM orders WHERE phone = ? ORDER BY created_at DESC').all(phone);
-  const itemStmt = conn.prepare('SELECT * FROM order_items WHERE order_id = ?');
+async function getCustomerOrders(phone) {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM orders WHERE phone = $1 ORDER BY created_at DESC', [phone]);
+  const orders = res.rows;
   for (const order of orders) {
-    order.items = itemStmt.all(order.id);
+    const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    order.items = itemsRes.rows;
   }
   return orders;
 }
 
 // ── Reports ──────────────────────────────────────────────────────────────────
 
-function getDashboardSummary(storeId = null) {
-  const conn = getDb();
+async function getDashboardSummary(storeId = null) {
+  const pool = getDb();
   let where = '';
   const params = [];
+  let index = 1;
   if (storeId) {
-    where = ' WHERE store_id = ?';
+    where = ` WHERE store_id = $${index++}`;
     params.push(storeId);
   }
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const totalOrders = conn.prepare(`SELECT COUNT(*) as count FROM orders${where}`).get(...params).count;
-  const todayOrders = conn.prepare(`SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = ?${storeId ? ' AND store_id = ?' : ''}`).get(today, ...params).count;
-  const totalRevenue = conn.prepare(`SELECT COALESCE(SUM(total), 0) as sum FROM orders WHERE payment_status = 'Paid'${storeId ? ' AND store_id = ?' : ''}`).get(...params).sum;
-  const todayRevenue = conn.prepare(`SELECT COALESCE(SUM(total), 0) as sum FROM orders WHERE payment_status = 'Paid' AND DATE(created_at) = ?${storeId ? ' AND store_id = ?' : ''}`).get(today, ...params).sum;
-  const pendingOrders = conn.prepare(`SELECT COUNT(*) as count FROM orders WHERE order_status NOT IN ('Delivered', 'Completed', 'Cancelled')${storeId ? ' AND store_id = ?' : ''}`).get(...params).count;
-  const totalCustomers = conn.prepare(`SELECT COUNT(DISTINCT phone) as count FROM orders${where}`).get(...params).count;
+  const totalOrdersRes = await pool.query(`SELECT COUNT(*) as count FROM orders${where}`, params);
+  const totalOrders = parseInt(totalOrdersRes.rows[0].count);
 
-  // Orders by status
-  const byStatus = conn.prepare(`SELECT order_status, COUNT(*) as count FROM orders${where} GROUP BY order_status`).all(...params);
+  const todayParams = [today, ...params];
+  const todayOrdersRes = await pool.query(`SELECT COUNT(*) as count FROM orders WHERE CAST(created_at AS date) = $1${storeId ? ' AND store_id = $2' : ''}`, todayParams);
+  const todayOrders = parseInt(todayOrdersRes.rows[0].count);
 
-  // Payment status breakdown
-  const byPaymentStatus = conn.prepare(`SELECT payment_status, COUNT(*) as count FROM orders${where} GROUP BY payment_status`).all(...params);
-  const pendingPaymentOrders = conn.prepare(`SELECT COUNT(*) as count FROM orders WHERE payment_status != 'Paid'${storeId ? ' AND store_id = ?' : ''}`).get(...params).count;
+  const totalRevenueRes = await pool.query(`SELECT COALESCE(SUM(total), 0) as sum FROM orders WHERE payment_status = 'Paid'${storeId ? ' AND store_id = $1' : ''}`, params);
+  const totalRevenue = parseFloat(totalRevenueRes.rows[0].sum);
 
-  // Payment method breakdown
-  const byPayment = conn.prepare(`SELECT payment_method, COUNT(*) as count FROM orders${where} GROUP BY payment_method`).all(...params);
+  const todayRevenueRes = await pool.query(`SELECT COALESCE(SUM(total), 0) as sum FROM orders WHERE payment_status = 'Paid' AND CAST(created_at AS date) = $1${storeId ? ' AND store_id = $2' : ''}`, todayParams);
+  const todayRevenue = parseFloat(todayRevenueRes.rows[0].sum);
 
-  // Recent 7 days revenue
-  const dailyRevenue = conn.prepare(`
-    SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders
+  const pendingOrdersRes = await pool.query(`SELECT COUNT(*) as count FROM orders WHERE order_status NOT IN ('Delivered', 'Completed', 'Cancelled')${storeId ? ' AND store_id = $1' : ''}`, params);
+  const pendingOrders = parseInt(pendingOrdersRes.rows[0].count);
+
+  const totalCustomersRes = await pool.query(`SELECT COUNT(DISTINCT phone) as count FROM orders${where}`, params);
+  const totalCustomers = parseInt(totalCustomersRes.rows[0].count);
+
+  const byStatusRes = await pool.query(`SELECT order_status, COUNT(*) as count FROM orders${where} GROUP BY order_status`, params);
+  const byStatus = byStatusRes.rows.map(r => ({ order_status: r.order_status, count: parseInt(r.count) }));
+
+  const byPaymentStatusRes = await pool.query(`SELECT payment_status, COUNT(*) as count FROM orders${where} GROUP BY payment_status`, params);
+  const byPaymentStatus = byPaymentStatusRes.rows.map(r => ({ payment_status: r.payment_status, count: parseInt(r.count) }));
+
+  const pendingPaymentOrdersRes = await pool.query(`SELECT COUNT(*) as count FROM orders WHERE payment_status != 'Paid'${storeId ? ' AND store_id = $1' : ''}`, params);
+  const pendingPaymentOrders = parseInt(pendingPaymentOrdersRes.rows[0].count);
+
+  const byPaymentRes = await pool.query(`SELECT payment_method, COUNT(*) as count FROM orders${where} GROUP BY payment_method`, params);
+  const byPayment = byPaymentRes.rows.map(r => ({ payment_method: r.payment_method, count: parseInt(r.count) }));
+
+  const dailyRevenueRes = await pool.query(`
+    SELECT CAST(created_at AS date) as date, COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders
     FROM orders
-    WHERE created_at >= datetime('now', '-7 days')${storeId ? ' AND store_id = ?' : ''}
-    GROUP BY DATE(created_at)
+    WHERE created_at >= NOW() - INTERVAL '7 days'${storeId ? ' AND store_id = $1' : ''}
+    GROUP BY CAST(created_at AS date)
     ORDER BY date
-  `).all(...params);
+  `, params);
+  const dailyRevenue = dailyRevenueRes.rows.map(r => ({
+    date: new Date(r.date).toISOString().slice(0, 10),
+    revenue: parseFloat(r.revenue),
+    orders: parseInt(r.orders)
+  }));
 
-  // Top services
-  const topServices = conn.prepare(`
+  let topServicesSql = `
     SELECT item_name, SUM(qty) as total_qty, SUM(price * qty) as total_revenue
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
-    ${where ? where.replace('WHERE', 'WHERE o.') : ''}
+  `;
+  if (storeId) {
+    topServicesSql += ' WHERE o.store_id = $1';
+  }
+  topServicesSql += `
     GROUP BY item_name
     ORDER BY total_qty DESC
     LIMIT 10
-  `).all(...params);
+  `;
+  const topServicesRes = await pool.query(topServicesSql, params);
+  const topServices = topServicesRes.rows.map(r => ({
+    item_name: r.item_name,
+    total_qty: parseInt(r.total_qty),
+    total_revenue: parseFloat(r.total_revenue)
+  }));
 
-  // Busiest time slots
-  const timeSlots = conn.prepare(`SELECT time_slot, COUNT(*) as count FROM orders${where} GROUP BY time_slot ORDER BY count DESC`).all(...params);
+  const timeSlotsRes = await pool.query(`SELECT time_slot, COUNT(*) as count FROM orders${where} GROUP BY time_slot ORDER BY count DESC`, params);
+  const timeSlots = timeSlotsRes.rows.map(r => ({ time_slot: r.time_slot, count: parseInt(r.count) }));
 
   return {
     totalOrders,
@@ -591,38 +686,46 @@ function getDashboardSummary(storeId = null) {
   };
 }
 
-function getRevenueData(period = '30', storeId = null) {
-  const conn = getDb();
-  let where = storeId ? ' AND store_id = ?' : '';
-  const params = storeId ? [storeId] : [];
+async function getRevenueData(period = '30', storeId = null) {
+  const pool = getDb();
+  let where = storeId ? ' AND store_id = $2' : '';
+  const params = storeId ? [parseInt(period), storeId] : [parseInt(period)];
 
-  return conn.prepare(`
-    SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders
+  const res = await pool.query(`
+    SELECT CAST(created_at AS date) as date, COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders
     FROM orders
-    WHERE created_at >= datetime('now', '-${parseInt(period)} days')${where}
-    GROUP BY DATE(created_at)
+    WHERE created_at >= NOW() - CAST($1 || ' days' AS INTERVAL) ${where}
+    GROUP BY CAST(created_at AS date)
     ORDER BY date
-  `).all(...params);
+  `, params);
+  return res.rows.map(r => ({
+    date: new Date(r.date).toISOString().slice(0, 10),
+    revenue: parseFloat(r.revenue),
+    orders: parseInt(r.orders)
+  }));
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
-function getSetting(key) {
-  const conn = getDb();
-  const row = conn.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-  return row ? row.value : null;
+async function getSetting(key) {
+  const pool = getDb();
+  const res = await pool.query('SELECT value FROM settings WHERE key = $1', [key]);
+  return res.rows[0] ? res.rows[0].value : null;
 }
 
-function setSetting(key, value) {
-  const conn = getDb();
-  return conn.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
+async function setSetting(key, value) {
+  const pool = getDb();
+  return await pool.query(`
+    INSERT INTO settings (key, value) VALUES ($1, $2)
+    ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value
+  `, [key, String(value)]);
 }
 
-function getAllSettings() {
-  const conn = getDb();
-  const rows = conn.prepare('SELECT * FROM settings').all();
+async function getAllSettings() {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM settings');
   const result = {};
-  for (const row of rows) {
+  for (const row of res.rows) {
     result[row.key] = row.value;
   }
   return result;
