@@ -12,6 +12,8 @@
           "script.js",
           "robots.txt",
           "sitemap.xml",
+          "manifest.json",
+          "sw.js",
           "assets/**",
           "db/**",
           "admin/**"
