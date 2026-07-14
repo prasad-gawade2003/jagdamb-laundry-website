@@ -56,10 +56,16 @@ dotenv.config();
       { name: 'Bedsheet Cleaning', desc: 'Bedsheets, covers and blankets handled with care.', price: 100, unit: '' },
       { name: 'Shoes Cleaning', desc: 'Special handling for designer garments.', price: 200, unit: '' },
       { name: 'Curtain Cleaning', desc: 'Deep cleaning for home curtains.', price: 100, unit: '' },
+      { name: 'Toy Cleaning', desc: 'Soft and plastic toys cleaned carefully.', price: 150, unit: '' },
     ];
 
     for (const s of services) {
-      await db.upsertService({ name: s.name, description: s.desc, price: s.price, unit: s.unit });
+      const existing = await db.getDb().query('SELECT id FROM services WHERE name=$1', [s.name]);
+      if (existing.rows && existing.rows.length) {
+        await db.upsertService({ id: existing.rows[0].id, name: s.name, description: s.desc, price: s.price, unit: s.unit });
+      } else {
+        await db.upsertService({ name: s.name, description: s.desc, price: s.price, unit: s.unit });
+      }
     }
 
     console.log('✅ Services seeded');

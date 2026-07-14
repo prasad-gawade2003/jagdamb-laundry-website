@@ -166,6 +166,22 @@ async function initTables() {
     console.log('Realtime publication setup skipped or not supported:', e.message);
   }
 
+  // Disable RLS and set REPLICA IDENTITY to FULL for realtime subscription compatibility
+  try {
+    await pool.query('ALTER TABLE orders DISABLE ROW LEVEL SECURITY;');
+    await pool.query('ALTER TABLE order_items DISABLE ROW LEVEL SECURITY;');
+    console.log('Disabled Row Level Security (RLS) on orders and order_items tables.');
+  } catch (e) {
+    console.log('Could not disable RLS:', e.message);
+  }
+
+  try {
+    await pool.query('ALTER TABLE orders REPLICA IDENTITY FULL;');
+    console.log('Set REPLICA IDENTITY FULL on orders table.');
+  } catch (e) {
+    console.log('Could not set replica identity FULL on orders:', e.message);
+  }
+
   await fixMalformedPickupDates(pool);
 
   // Auto-seed default database if no admins exist

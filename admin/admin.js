@@ -2,7 +2,9 @@
    Jagdamb Laundry — Admin Panel JavaScript
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const API_BASE = location.protocol === 'file:' ? 'http://localhost:3000' : '';
+const API_BASE = (location.protocol === 'file:' || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port !== '3000'))
+  ? 'http://localhost:3000'
+  : '';
 const token = localStorage.getItem('jld_admin_token');
 const adminUser = JSON.parse(localStorage.getItem('jld_admin_user') || '{}');
 

@@ -161,6 +161,20 @@ let services = [
     name: "Curtain Cleaning",
     desc: "Deep cleaning for home curtains.",
     price: 100
+  },
+  {
+    icon: `<svg viewBox="0 0 64 64" width="72" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="48" cy="14" r="2" fill="#bae6fd" />
+      <circle cx="54" cy="20" r="1.5" fill="#a5f3fc" />
+      <path d="M38 32c0-8 6-14 14-14h2a2 2 0 012 2v6c0 6-4 12-10 14l-6 2c-8 0-14-6-14-14v-6c0-6 4-10 10-10h4" fill="#fef08a" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" />
+      <path d="M22 28V16c0-4.4 3.6-8 8-8s8 3.6 8 8v12" stroke="#1e293b" stroke-width="2.5" fill="#fef08a" />
+      <path d="M38 14h6a2 2 0 012 2v2a2 2 0 01-2 2h-6" fill="#f97316" stroke="#1e293b" stroke-width="2" />
+      <circle cx="28" cy="14" r="2" fill="#1e293b" />
+      <path d="M12 48c4-2 8-2 12 0s8 2 12 0 8-2 12 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" />
+    </svg>`,
+    name: "Toy Cleaning",
+    desc: "Soft toys and plastic toys cleaned carefully.",
+    price: 150
   }
 ];
 
@@ -171,11 +185,13 @@ let locationData = null;
 let lastOrder = null;
 let pendingOrder = null;
 
-// When the page is opened directly from the filesystem (file://), relative
-// API calls like `/api/create-payment` won't reach the local server. Use an
-// explicit localhost base in that case so the client talks to the dev server
-// at http://localhost:3000.
-const API_BASE = location.protocol === 'file:' ? 'http://localhost:3000' : '';
+// When the page is opened directly from the filesystem (file://), or from a different
+// local port (like VS Code Live Server on port 5500), relative API calls won't reach
+// the local server. Use an explicit localhost base in those cases so the client talks
+// to the dev server at http://localhost:3000.
+const API_BASE = (location.protocol === 'file:' || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port !== '3000'))
+  ? 'http://localhost:3000'
+  : '';
 
 const currency = (amount) => `Rs ${amount}`;
 const byId = (id) => document.getElementById(id);
@@ -443,7 +459,10 @@ function renderServices() {
             <h3>${service.name}</h3>
             <p>${service.desc}</p>
             <strong>Starting ${currency(service.price)}${service.unit ? ' ' + service.unit : ''}</strong>
-            <button class="btn soft add-service" type="button" data-name="${service.name}">Add to Order</button>
+            <button class="btn soft add-service" type="button" data-name="${service.name}">
+              <span class="btn-text-desktop">Add to Order</span>
+              <span class="btn-text-mobile">+ Add</span>
+            </button>
           </article>
         `,
     )
@@ -716,6 +735,22 @@ function playLaundryDrop() {
 }
 
 function setupEvents() {
+  // Intersection Observer for stepper scroll animations
+  const stepsEl = document.querySelector('.steps');
+  if (stepsEl && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    observer.observe(stepsEl);
+  } else if (stepsEl) {
+    stepsEl.classList.add('in-view');
+  }
+
   ["quickWhatsApp", "heroWhatsApp", "contactWhatsApp"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.href = buildWhatsAppPhoneLink(shop.inquiryPhone, shop.inquiryMessage || quickMessage());
@@ -1482,7 +1517,18 @@ setupEvents();
       // Keep hardcoded SVG icons, update name/price/desc from DB
       const iconMap = {};
       services.forEach(s => { iconMap[s.name] = s.icon; });
-      services = apiServices.map(s => ({
+      
+      // Filter out duplicate services by name to prevent repeating rows
+      const uniqueApiServices = [];
+      const seen = new Set();
+      apiServices.forEach(s => {
+        if (!seen.has(s.name)) {
+          seen.add(s.name);
+          uniqueApiServices.push(s);
+        }
+      });
+
+      services = uniqueApiServices.map(s => ({
         icon: iconMap[s.name] || services[0]?.icon || '',
         name: s.name,
         desc: s.description || s.desc || '',

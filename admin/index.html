@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="admin.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#3b82f6" />
   </head>
   <body class="login-body">
     <div class="login-container">
@@ -54,7 +56,9 @@
     </div>
 
     <script>
-      const API_BASE = location.protocol === 'file:' ? 'http://localhost:3000' : '';
+      const API_BASE = (location.protocol === 'file:' || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port !== '3000'))
+        ? 'http://localhost:3000'
+        : '';
 
       // Check if already logged in
       const token = localStorage.getItem('jld_admin_token');
@@ -103,6 +107,13 @@
           btn.querySelector('span').textContent = 'Sign In';
         }
       });
+
+      // Register Admin PWA Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(err => console.log('Admin ServiceWorker registration failed: ', err));
+        });
+      }
     </script>
   </body>
 </html>
