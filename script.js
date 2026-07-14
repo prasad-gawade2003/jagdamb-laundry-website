@@ -722,16 +722,7 @@ function showPayment(order) {
 }
 
 function playLaundryDrop() {
-  const scene = document.querySelector(".laundry-drop-scene");
-  if (!scene) return;
-  scene.classList.remove("play");
-  scene.classList.remove("has-pile");
-  void scene.offsetWidth;
-  scene.classList.add("play");
-  window.setTimeout(() => {
-    scene.classList.add("has-pile");
-    scene.classList.remove("play");
-  }, 1750);
+  // Animation removed
 }
 
 function setupEvents() {
