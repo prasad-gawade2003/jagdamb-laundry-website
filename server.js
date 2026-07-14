@@ -268,21 +268,6 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
     const admin = await db.getAdminByUsername(username);
-
-// Test route for verifying WAHA / Cloud API configuration
-app.post('/api/test-whatsapp', (req, res) => {
-  const { to, message } = req.body || {};
-  const target = to || WAHA_FROM_PHONE || WHATSAPP_LAUNDRY_PHONE || '';
-  if (!target) return res.status(400).json({ error: 'No target phone configured' });
-
-  sendWhatsAppMessage(target, message || 'Test message from Jagdamb Laundry').then(ok => {
-    if (ok) return res.json({ success: true });
-    return res.status(500).json({ success: false, error: 'Failed to send via configured WhatsApp provider' });
-  }).catch(err => {
-    console.error('Test send error:', err);
-    res.status(500).json({ success: false, error: err.message || String(err) });
-  });
-});
     if (!admin || !db.verifyAdminPassword(admin, password)) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
@@ -305,6 +290,21 @@ app.post('/api/test-whatsapp', (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Test route for verifying WAHA / Cloud API configuration
+app.post('/api/test-whatsapp', (req, res) => {
+  const { to, message } = req.body || {};
+  const target = to || WAHA_FROM_PHONE || WHATSAPP_LAUNDRY_PHONE || '';
+  if (!target) return res.status(400).json({ error: 'No target phone configured' });
+
+  sendWhatsAppMessage(target, message || 'Test message from Jagdamb Laundry').then(ok => {
+    if (ok) return res.json({ success: true });
+    return res.status(500).json({ success: false, error: 'Failed to send via configured WhatsApp provider' });
+  }).catch(err => {
+    console.error('Test send error:', err);
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  });
 });
 
 app.get('/api/admin/me', authMiddleware, (req, res) => {

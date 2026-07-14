@@ -130,6 +130,7 @@ function init() {
 
   // Load overview first
   loadOverview();
+  updateMobileHeader('overview');
   loadStoreFilters();
 
   // Setup live updates via Supabase
@@ -148,6 +149,25 @@ function init() {
 
 // ── Navigation ───────────────────────────────────────────────────────────────
 
+function updateMobileHeader(section) {
+  const mobileHeaderTitle = document.querySelector('.mobile-header h2');
+  if (mobileHeaderTitle) {
+    const titles = {
+      overview: 'Overview',
+      orders: 'Orders',
+      customers: 'Customers',
+      services: 'Services & Pricing',
+      stores: 'Stores',
+      payments: 'Payments',
+      reports: 'Reports',
+      settings: 'Settings'
+    };
+    const storePrefix = adminUser.storeId ? adminUser.storeId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+    const sectionTitle = titles[section] || 'JLD Admin';
+    mobileHeaderTitle.textContent = storePrefix ? `${storePrefix} - ${sectionTitle}` : sectionTitle;
+  }
+}
+
 function setupNav() {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -157,6 +177,9 @@ function setupNav() {
       item.classList.add('active');
       document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
       $(`sec-${section}`).classList.add('active');
+
+      // Update mobile header title dynamically
+      updateMobileHeader(section);
 
       // Close mobile sidebar
       $('sidebar').classList.remove('open');
