@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jagdamb-laundry-admin-cache-v2';
+const CACHE_NAME = 'jagdamb-laundry-admin-cache-v3';
 const urlsToCache = [
   '/admin/',
   '/admin/index.html',
@@ -17,6 +17,20 @@ self.addEventListener('install', event => {
       .then(cache => {
         return cache.addAll(urlsToCache).catch(() => {});
       })
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
   );
 });
 
