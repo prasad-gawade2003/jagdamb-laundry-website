@@ -518,7 +518,14 @@ window.whatsappOrder = function(id) {
   if (!order) return;
   const phone = order.phone.replace(/\D/g, '');
   const fullPhone = phone.length === 10 ? `91${phone}` : phone;
-  const msg = `Hi ${order.customer_name}! Your order #${order.id} status: *${order.order_status}*\nTotal: ${currency(order.total)}\n\n— Jagdamb Laundry`;
+  
+  let msg;
+  if (order.order_status === 'Completed') {
+    const siteUrl = window.location.origin;
+    msg = `👋 Hi ${order.customer_name}!!\n📋 Your order #${order.id}\n🎉 Your Order is Completed\n💰 Total: ${currency(order.total)}\n🧺 ..... Jagdamb Laundry @ Drycleaners\n\n\n\n\n🚚 Book your delivery slot: ${siteUrl}/?action=schedule-delivery&order_id=${order.id}`;
+  } else {
+    msg = `Hi ${order.customer_name}! Your order #${order.id} status is: *${order.order_status}*\nTotal: ${currency(order.total)}\n\n— Jagdamb Laundry`;
+  }
   window.open(`https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(msg)}`, '_blank');
 };
 
@@ -1118,6 +1125,8 @@ async function loadSettings() {
     $('setUpiId').value = settings.upi_id || '';
     $('setPickupCharge').value = settings.pickup_charge || '0';
     $('setOrigPickupCharge').value = settings.original_pickup_charge || '49';
+    $('setRazorpayKeyId').value = settings.razorpay_key_id || '';
+    $('setRazorpayKeySecret').value = settings.razorpay_key_secret || '';
 
     // Load admin accounts (superadmin only)
     if (adminUser.role === 'superadmin') {
@@ -1158,6 +1167,19 @@ $('shopSettingsForm')?.addEventListener('submit', async (e) => {
     }
   });
   toast('Settings saved successfully');
+});
+
+// Save Razorpay settings
+$('razorpaySettingsForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await api('/api/admin/settings', {
+    method: 'PUT',
+    body: {
+      razorpay_key_id: $('setRazorpayKeyId').value,
+      razorpay_key_secret: $('setRazorpayKeySecret').value
+    }
+  });
+  toast('Razorpay settings saved successfully');
 });
 
 // Add admin

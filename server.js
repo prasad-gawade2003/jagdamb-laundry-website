@@ -49,14 +49,22 @@ app.use(express.static(path.join(__dirname)));
 
 // ── Razorpay config ─────────────────────────────────────────────────────────
 
-let razorpay = null;
-if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-  razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
+async function getRazorpayConfig() {
+  const keyId = (await db.getSetting('razorpay_key_id')) || process.env.RAZORPAY_KEY_ID || '';
+  const keySecret = (await db.getSetting('razorpay_key_secret')) || process.env.RAZORPAY_KEY_SECRET || '';
+  return {
+    keyId: keyId.trim(),
+    keySecret: keySecret.trim()
+  };
+}
+
+async function getRazorpayClient() {
+  const { keyId, keySecret } = await getRazorpayConfig();
+  if (!keyId || !keySecret) return null;
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret
   });
-} else {
-  console.warn('WARNING: Razorpay credentials missing. Checkout will fail until configured.');
 }
 
 // ── WhatsApp Cloud API config ───────────────────────────────────────────────
@@ -461,7 +469,7 @@ app.put('/api/admin/orders/:id/status', authMiddleware, async (req, res) => {
       try {
         const order = await db.getOrder(req.params.id);
         if (order && order.phone) {
-          const msg = formatCompletedMessage(order);
+          const msg = formatCompletedMessage(order, req);
           sendWhatsAppMessage(order.phone, msg).catch(err => {
             console.warn('Failed to send order completed WhatsApp:', err.message);
           });
@@ -500,11 +508,11 @@ app.put('/api/admin/orders/:id/status', authMiddleware, async (req, res) => {
 // Admin: Send manual order completed WhatsApp notification
 app.post('/api/admin/orders/:id/send-completed-notification', authMiddleware, async (req, res) => {
   try {
-    const order = db.getOrder(req.params.id);
+    const order = await db.getOrder(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (!order.phone) return res.status(400).json({ error: 'Customer phone number is missing' });
 
-    const msg = formatCompletedMessage(order);
+    const msg = formatCompletedMessage(order, req);
 
     const ok = await sendWhatsAppMessage(order.phone, msg);
     if (ok) {
@@ -819,8 +827,9 @@ app.put('/api/admin/settings', authMiddleware, async (req, res) => {
 
 app.post('/api/create-order', async (req, res) => {
   try {
-    if (!razorpay) {
-      return res.status(500).json({ error: 'Razorpay keys are not configured on the server. Please add them to your Environment Variables.' });
+    const rzpClient = await getRazorpayClient();
+    if (!rzpClient) {
+      return res.status(500).json({ error: 'Razorpay keys are not configured on the server. Please add them in the Admin Settings or Environment Variables.' });
     }
 
     const order = req.body || {};
@@ -844,16 +853,18 @@ app.post('/api/create-order', async (req, res) => {
     };
 
     try {
-      const razorpayOrder = await razorpay.orders.create(options);
+      const razorpayOrder = await rzpClient.orders.create(options);
       await db.updateRazorpayOrderId(localOrderId, razorpayOrder.id);
       await db.updatePaymentStatus(localOrderId, 'Payment Waiting', undefined);
+
+      const rzpConfig = await getRazorpayConfig();
 
       res.json({
         local_order_id: localOrderId,
         razorpay_order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        key_id: process.env.RAZORPAY_KEY_ID
+        key_id: rzpConfig.keyId
       });
     } catch (razorpayErr) {
       await db.deleteOrder(localOrderId);
@@ -876,8 +887,10 @@ app.post('/api/verify-payment', async (req, res) => {
       return res.status(400).json({ error: 'Missing required payment verification fields' });
     }
 
+    const rzpConfig = await getRazorpayConfig();
+
     const generated_signature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac('sha256', rzpConfig.keySecret)
       .update(razorpay_order_id + '|' + razorpay_payment_id)
       .digest('hex');
 
