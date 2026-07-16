@@ -5,17 +5,35 @@ const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const Razorpay = require('razorpay');
+const webpush = require('web-push');
 const db = require('./db/database');
 
 dotenv.config();
 
-// Initialize database tables
+// Initialize database tables and Web Push details
 (async () => {
   try {
     await db.initTables();
     console.log('Database tables verified/initialized.');
+
+    let publicKey = await db.getSetting('vapid_public_key');
+    let privateKey = await db.getSetting('vapid_private_key');
+    if (!publicKey || !privateKey) {
+      console.log('Generating new VAPID keys...');
+      const keys = webpush.generateVAPIDKeys();
+      publicKey = keys.publicKey;
+      privateKey = keys.privateKey;
+      await db.setSetting('vapid_public_key', publicKey);
+      await db.setSetting('vapid_private_key', privateKey);
+    }
+    webpush.setVapidDetails(
+      'mailto:jagdambalaundry1@gmail.com',
+      publicKey,
+      privateKey
+    );
+    console.log('Web Push VAPID details configured successfully.');
   } catch (err) {
-    console.error('Database initialization error:', err);
+    console.error('Database / Web Push initialization error:', err);
   }
 })();
 
@@ -447,6 +465,25 @@ app.put('/api/admin/orders/:id/status', authMiddleware, async (req, res) => {
           sendWhatsAppMessage(order.phone, msg).catch(err => {
             console.warn('Failed to send order completed WhatsApp:', err.message);
           });
+
+          // Send Web Push notification
+          db.getPushSubscriptions(order.phone).then(subscriptions => {
+            if (subscriptions && subscriptions.length > 0) {
+              const payload = JSON.stringify({
+                title: 'Order Completed! 🎉',
+                body: `Your order #${order.id || order.order_number || ''} is ready. Tap to rate your experience!`,
+                orderId: order.id,
+                action: 'rate'
+              });
+              subscriptions.forEach(sub => {
+                webpush.sendNotification(sub, payload).catch(pushErr => {
+                  console.warn('Failed to send web push notification:', pushErr.message);
+                });
+              });
+            }
+          }).catch(dbErr => {
+            console.warn('Error retrieving push subscriptions:', dbErr);
+          });
         }
       } catch (err) {
         console.warn('Error sending completed notification:', err);
@@ -595,6 +632,47 @@ app.post('/api/public/orders/:id/schedule-delivery', async (req, res) => {
   } catch (err) {
     console.error('Error scheduling delivery:', err);
     res.status(500).json({ error: 'Failed to schedule delivery' });
+  }
+});
+
+// Public: get VAPID public key
+app.get('/api/push/vapid-public-key', async (req, res) => {
+  try {
+    const key = await db.getSetting('vapid_public_key');
+    res.json({ publicKey: key });
+  } catch (err) {
+    console.error('Error fetching VAPID public key:', err);
+    res.status(500).json({ error: 'Failed to fetch public key' });
+  }
+});
+
+// Public: register push subscription linked to customer phone
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    const { phone, subscription } = req.body;
+    if (!phone || !subscription) {
+      return res.status(400).json({ error: 'phone and subscription are required' });
+    }
+    await db.savePushSubscription(phone, JSON.stringify(subscription));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving push subscription:', err);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+// Public: save order feedback rating
+app.post('/api/orders/:id/feedback', async (req, res) => {
+  try {
+    const { rating, comments } = req.body;
+    if (rating === undefined || rating === null) {
+      return res.status(400).json({ error: 'rating is required' });
+    }
+    await db.saveOrderFeedback(req.params.id, parseInt(rating), comments || '');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving order feedback:', err);
+    res.status(500).json({ error: 'Failed to save feedback' });
   }
 });
 

@@ -650,6 +650,14 @@ function saveOrderToHistory(order) {
     localStorage.setItem('jld_order_history', JSON.stringify(history));
   }
 
+  // Save phone number and register for push notifications
+  if (order.phone) {
+    localStorage.setItem('jld_customer_phone', order.phone);
+    if (typeof setupPushNotifications === 'function') {
+      setupPushNotifications(order.phone);
+    }
+  }
+
   // Also save to server database for admin panel
   if (order._serverOrderCreated) return;
   try {
@@ -1819,5 +1827,219 @@ window.downloadOrderPDF = function (renderIdx) {
         toast('Error: ' + err.message);
       }
     });
+  }
+
+  // ── Web Push & Rating Modal logic ───────────────────────────────────────────
+
+  async function setupPushNotifications(phone) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('Push notifications are not supported on this browser.');
+      return;
+    }
+
+    try {
+      // 1. Get permission
+      let permission = Notification.permission;
+      if (permission === 'default') {
+        permission = await Notification.requestPermission();
+      }
+      if (permission !== 'granted') {
+        console.log('Notification permission not granted.');
+        return;
+      }
+
+      // 2. Register / wait for service worker registration to be ready
+      const registration = await navigator.serviceWorker.ready;
+
+      // 3. Fetch VAPID public key from backend
+      const keyResp = await fetch(API_BASE + '/api/push/vapid-public-key');
+      if (!keyResp.ok) throw new Error('Failed to fetch VAPID key');
+      const { publicKey } = await keyResp.json();
+
+      // 4. Subscribe the client
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+
+      // 5. Send subscription info to backend
+      await fetch(API_BASE + '/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, subscription })
+      });
+      console.log('Successfully registered for Web Push notifications.');
+    } catch (err) {
+      console.warn('Error setting up push notifications:', err);
+    }
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  function openRatingModal(orderId) {
+    const modal = byId('ratingModal');
+    const orderSpan = byId('ratingOrderNumber');
+    const orderIdInput = byId('ratingOrderId');
+    if (modal) {
+      if (orderSpan) orderSpan.textContent = `#${orderId}`;
+      if (orderIdInput) orderIdInput.value = orderId;
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeRatingModal() {
+    const modal = byId('ratingModal');
+    if (modal) {
+      modal.setAttribute('aria-hidden', 'true');
+      const form = byId('ratingForm');
+      if (form) form.reset();
+      document.querySelectorAll('.star-rating-container .rating-star').forEach(star => {
+        star.classList.remove('active');
+        star.textContent = '☆';
+      });
+      byId('ratingValue').value = '0';
+    }
+  }
+
+  function setupRatingModalEvents() {
+    const stars = document.querySelectorAll('.star-rating-container .rating-star');
+    const ratingValueInput = byId('ratingValue');
+    
+    stars.forEach(star => {
+      star.addEventListener('click', () => {
+        const val = parseInt(star.dataset.value);
+        ratingValueInput.value = val;
+        
+        stars.forEach(s => {
+          const sVal = parseInt(s.dataset.value);
+          if (sVal <= val) {
+            s.classList.add('active');
+            s.textContent = '★';
+          } else {
+            s.classList.remove('active');
+            s.textContent = '☆';
+          }
+        });
+      });
+    });
+
+    const ratingForm = byId('ratingForm');
+    if (ratingForm) {
+      ratingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const orderId = byId('ratingOrderId').value;
+        const rating = ratingValueInput.value;
+        const comments = byId('ratingComments').value;
+
+        if (!rating || rating === '0') {
+          toast('Please select a star rating first!');
+          return;
+        }
+
+        try {
+          const resp = await fetch(API_BASE + `/api/orders/${orderId}/feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating, comments })
+          });
+          if (resp.ok) {
+            toast('Thank you for your rating! 😊');
+            closeRatingModal();
+            const url = new URL(window.location);
+            url.searchParams.delete('action');
+            url.searchParams.delete('order_id');
+            window.history.replaceState({}, document.title, url.pathname);
+          } else {
+            toast('Failed to save rating. Please try again.');
+          }
+        } catch (err) {
+          console.error('Error submitting feedback:', err);
+          toast('Failed to submit feedback.');
+        }
+      });
+    }
+
+    const ratingBackdrop = byId('ratingBackdrop');
+    const ratingClose = byId('ratingClose');
+    if (ratingBackdrop) ratingBackdrop.addEventListener('click', closeRatingModal);
+    if (ratingClose) ratingClose.addEventListener('click', closeRatingModal);
+  }
+
+  function checkRatingUrlQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const orderId = params.get('order_id');
+
+    if (action === 'rate' && orderId) {
+      setTimeout(() => {
+        openRatingModal(orderId);
+      }, 800);
+    }
+  }
+
+  function setupTermsAndPrivacyEvents() {
+    const termsModal = byId('termsModal');
+    const privacyModal = byId('privacyModal');
+
+    const openTerms = byId('openTerms');
+    const openPrivacy = byId('openPrivacy');
+
+    const termsClose = byId('termsClose');
+    const termsBackdrop = byId('termsBackdrop');
+    const termsAcceptBtn = byId('termsAcceptBtn');
+
+    const privacyClose = byId('privacyClose');
+    const privacyBackdrop = byId('privacyBackdrop');
+    const privacyAcceptBtn = byId('privacyAcceptBtn');
+
+    const showTerms = (e) => {
+      if (e) e.preventDefault();
+      if (termsModal) termsModal.setAttribute('aria-hidden', 'false');
+    };
+
+    const hideTerms = (e) => {
+      if (e) e.preventDefault();
+      if (termsModal) termsModal.setAttribute('aria-hidden', 'true');
+    };
+
+    const showPrivacy = (e) => {
+      if (e) e.preventDefault();
+      if (privacyModal) privacyModal.setAttribute('aria-hidden', 'false');
+    };
+
+    const hidePrivacy = (e) => {
+      if (e) e.preventDefault();
+      if (privacyModal) privacyModal.setAttribute('aria-hidden', 'true');
+    };
+
+    if (openTerms) openTerms.addEventListener('click', showTerms);
+    if (termsClose) termsClose.addEventListener('click', hideTerms);
+    if (termsBackdrop) termsBackdrop.addEventListener('click', hideTerms);
+    if (termsAcceptBtn) termsAcceptBtn.addEventListener('click', hideTerms);
+
+    if (openPrivacy) openPrivacy.addEventListener('click', showPrivacy);
+    if (privacyClose) privacyClose.addEventListener('click', hidePrivacy);
+    if (privacyBackdrop) privacyBackdrop.addEventListener('click', hidePrivacy);
+    if (privacyAcceptBtn) privacyAcceptBtn.addEventListener('click', hidePrivacy);
+  }
+
+  // Initialize rating and push features
+  setupRatingModalEvents();
+  checkRatingUrlQuery();
+  setupTermsAndPrivacyEvents();
+  const savedPhone = localStorage.getItem('jld_customer_phone');
+  if (savedPhone) {
+    setupPushNotifications(savedPhone);
   }
 })();

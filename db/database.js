@@ -145,6 +145,21 @@ async function initTables() {
       key VARCHAR(255) PRIMARY KEY,
       value TEXT DEFAULT ''
     );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      phone VARCHAR(255) NOT NULL,
+      subscription_json TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS order_feedback (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      rating INTEGER NOT NULL,
+      comments TEXT DEFAULT '',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Enable Realtime for the orders table in Supabase publication
@@ -747,6 +762,35 @@ async function getAllSettings() {
   return result;
 }
 
+// ── Web Push & Feedback ──────────────────────────────────────────────────────
+
+async function savePushSubscription(phone, subscriptionJson) {
+  const pool = getDb();
+  // Clean up any exact duplicate subscription JSONs to avoid double sending
+  await pool.query('DELETE FROM push_subscriptions WHERE subscription_json = $1', [subscriptionJson]);
+  await pool.query('INSERT INTO push_subscriptions (phone, subscription_json) VALUES ($1, $2)', [phone, subscriptionJson]);
+}
+
+async function getPushSubscriptions(phone) {
+  const pool = getDb();
+  const res = await pool.query('SELECT subscription_json FROM push_subscriptions WHERE phone = $1', [phone]);
+  return res.rows.map(r => JSON.parse(r.subscription_json));
+}
+
+async function saveOrderFeedback(orderId, rating, comments) {
+  const pool = getDb();
+  await pool.query(
+    'INSERT INTO order_feedback (order_id, rating, comments) VALUES ($1, $2, $3)',
+    [orderId, rating, comments]
+  );
+}
+
+async function getOrderFeedback(orderId) {
+  const pool = getDb();
+  const res = await pool.query('SELECT * FROM order_feedback WHERE order_id = $1', [orderId]);
+  return res.rows[0] || null;
+}
+
 // ── Init & Export ────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -766,4 +810,6 @@ module.exports = {
   getDashboardSummary, getRevenueData,
   // Settings
   getSetting, setSetting, getAllSettings,
+  // Web Push & Feedback
+  savePushSubscription, getPushSubscriptions, saveOrderFeedback, getOrderFeedback,
 };

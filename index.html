@@ -343,6 +343,10 @@
     <footer class="site-footer">
       <strong>Jagdamb Laundry & Drycleaners</strong>
       <span>Wash, Fold, iron, dry cleaning and Quick doorstep pickup.</span>
+      <div class="footer-links" style="margin: 10px 0; display: flex; justify-content: center; gap: 20px; font-size: 0.85rem; opacity: 0.9;">
+        <a href="#" id="openTerms" style="text-decoration: underline; cursor: pointer; color: var(--white);">Terms & Conditions</a>
+        <a href="#" id="openPrivacy" style="text-decoration: underline; cursor: pointer; color: var(--white);">Privacy Policy</a>
+      </div>
       <small>Copyright 2026 Jagdamb Laundry & Drycleaners. All rights reserved.</small>
     </footer>
 
@@ -477,6 +481,102 @@
               Confirm Delivery Slot
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+    <!-- Order Feedback / Rating Modal -->
+    <div id="ratingModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="ratingBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="ratingTitle" style="max-width: 450px;">
+        <button class="modal-close" id="ratingClose" aria-label="Close dialog">×</button>
+        <div style="padding: 10px 4px; text-align: center;">
+          <h3 id="ratingTitle" style="margin-top: 0; font-size: 1.4rem; color: var(--primary);">
+            ⭐ Rate Your Experience
+          </h3>
+          <p style="color: var(--muted); font-size: 0.88rem; margin-bottom: 20px; line-height: 1.4;">
+            Your feedback helps us improve. Please rate your order <span id="ratingOrderNumber" style="font-weight: bold;"></span>.
+          </p>
+
+          <form id="ratingForm">
+            <input type="hidden" id="ratingOrderId">
+
+            <!-- Star Rating Input -->
+            <div class="star-rating-container" style="margin-bottom: 20px; font-size: 2.2rem; display: flex; justify-content: center; gap: 8px; cursor: pointer; color: var(--muted);">
+              <span class="rating-star" data-value="1">☆</span>
+              <span class="rating-star" data-value="2">☆</span>
+              <span class="rating-star" data-value="3">☆</span>
+              <span class="rating-star" data-value="4">☆</span>
+              <span class="rating-star" data-value="5">☆</span>
+            </div>
+            
+            <input type="hidden" id="ratingValue" name="rating" value="0" required>
+
+            <div style="margin-bottom: 20px;">
+              <label for="ratingComments" style="display: block; text-align: left; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Comments (Optional)</label>
+              <textarea id="ratingComments" placeholder="Share your experience with our services..." style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); height: 80px; resize: none; font-family: inherit; font-size: 0.9rem;"></textarea>
+            </div>
+
+            <button type="submit" class="btn primary" style="width: 100%; padding: 12px; font-weight: 600; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: all var(--transition);">
+              Submit Review
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- Terms & Conditions Modal -->
+    <div id="termsModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="termsBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="termsTitle" style="max-width: 600px;">
+        <button class="modal-close" id="termsClose" aria-label="Close dialog">×</button>
+        <div style="padding: 10px 4px; text-align: left;">
+          <h3 id="termsTitle" style="margin-top: 0; font-size: 1.4rem; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            📄 Terms & Conditions
+          </h3>
+          <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; color: var(--navy); padding-right: 10px; margin-bottom: 20px;">
+            <p>Welcome to <strong>Jagdamb Laundry & Drycleaners</strong>. By using our services, you agree to comply with and be bound by the following terms and conditions:</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">1. Services</h4>
+            <p>We provide laundry, dry cleaning, ironing, and delivery services. While we take the utmost care of your garments, we are not responsible for natural wear and tear, color fading, shrinkage, or issues arising from pre-existing structural damage of garments.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">2. Pick-up and Delivery</h4>
+            <p>We make every effort to pick up and deliver your laundry within the scheduled time slots. However, we cannot guarantee exact timings due to traffic, weather, or operational delays. Free pickup and drop are subject to store service areas.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">3. Payment</h4>
+            <p>Payments can be made online via UPI/Razorpay or cash on delivery (COD). All orders must be fully paid before or at the time of delivery.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">4. Claims & Liability</h4>
+            <p>Any discrepancy or claim regarding lost or damaged items must be reported within 24 hours of delivery, accompanied by the original receipt. In case of proven negligence, our maximum liability is limited to 5 times the laundry charge for that specific item.</p>
+          </div>
+          <button class="btn primary" id="termsAcceptBtn" style="width: 100%; min-height: 40px; padding: 10px;">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="privacyBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="privacyTitle" style="max-width: 600px;">
+        <button class="modal-close" id="privacyClose" aria-label="Close dialog">×</button>
+        <div style="padding: 10px 4px; text-align: left;">
+          <h3 id="privacyTitle" style="margin-top: 0; font-size: 1.4rem; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            🔒 Privacy Policy
+          </h3>
+          <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; color: var(--navy); padding-right: 10px; margin-bottom: 20px;">
+            <p>At <strong>Jagdamb Laundry & Drycleaners</strong>, we respect your privacy and are committed to protecting your personal information. This policy explains how we collect and use your data:</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">1. Information Collection</h4>
+            <p>We collect basic personal information like your name, phone number, physical address, and geolocation coords when you place an order or contact us. This is necessary to fulfill your bookings and schedule deliveries.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">2. How We Use Information</h4>
+            <p>We use your information to manage bookings, process payments via our gateway partner, dispatch automated order updates (via WhatsApp and Web Push), and coordinate with our delivery agents.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">3. Data Security</h4>
+            <p>Your transactions are secured using standard encryption. We do not sell, trade, or transfer your personally identifiable information to third parties, except trusted service providers like payment gateways (Razorpay) and routing services.</p>
+            
+            <h4 style="margin: 14px 0 6px 0; color: var(--blue);">4. Push Notifications & Cookies</h4>
+            <p>We use browser push notifications (with your explicit permission) to keep you informed about order completions. You can manage or turn off notification access at any time in your browser settings.</p>
+          </div>
+          <button class="btn primary" id="privacyAcceptBtn" style="width: 100%; min-height: 40px; padding: 10px;">Close</button>
         </div>
       </div>
     </div>

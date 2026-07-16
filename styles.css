@@ -2343,3 +2343,18 @@ textarea:focus {
     grid-column: span 1;
   }
 }
+
+/* Star Rating Interaction Styles */
+.star-rating-container .rating-star {
+  transition: transform 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.star-rating-container .rating-star:hover {
+  transform: scale(1.25);
+}
+
+.star-rating-container .rating-star.active {
+  color: #ffc107;
+  text-shadow: 0 0 6px rgba(255, 193, 7, 0.4);
+}
