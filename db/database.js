@@ -510,6 +510,13 @@ async function getAllOrders(filters = {}) {
     sql += ` AND payment_status = $${index++}`;
     params.push(filters.payment_status);
   }
+  if (filters.delivery_status) {
+    if (filters.delivery_status === 'scheduled') {
+      sql += " AND delivery_date != '' AND delivery_date IS NOT NULL";
+    } else if (filters.delivery_status === 'not_scheduled') {
+      sql += " AND (delivery_date = '' OR delivery_date IS NULL)";
+    }
+  }
   if (filters.date_from) {
     sql += ` AND pickup_date >= $${index++}`;
     params.push(filters.date_from);

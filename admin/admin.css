@@ -716,6 +716,9 @@ body {
 .status-badge.paid { background: var(--green-soft); color: var(--green); }
 .status-badge.paid::before { background: var(--green); }
 
+.status-badge.online-paid { background: var(--green-soft); color: var(--green); }
+.status-badge.online-paid::before { background: var(--green); }
+
 .status-badge.pending { background: var(--yellow-soft); color: var(--yellow); }
 .status-badge.pending::before { background: var(--yellow); }
 

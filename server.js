@@ -71,7 +71,7 @@ async function getRazorpayClient() {
 
 const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN || '';
 const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-const WHATSAPP_LAUNDRY_PHONE = process.env.WHATSAPP_LAUNDRY_PHONE || '917977411572';
+const WHATSAPP_LAUNDRY_PHONE = process.env.WHATSAPP_LAUNDRY_PHONE || '918459608647';
 
 // ── WAHA (WhatsApp HTTP API) config ────────────────────────────────────────
 // Example WAHA API: a simple HTTP endpoint that accepts `{ to, message }` JSON.
@@ -143,7 +143,7 @@ function formatWhatsAppReceipt(order, forLaundry = false) {
   if (!forLaundry) {
     lines.push('🙏 Thank you for choosing Jagdamb Laundry!');
     lines.push('We will confirm your pickup shortly.');
-    lines.push('📞 Contact: +91 79774 11572');
+    lines.push('📞 Contact: +91 84596 08647');
   }
 
   return lines.join('\n');
@@ -172,7 +172,7 @@ function formatCompletedMessage(order, req) {
     ``,
     `We hope you love our service! If you have any questions, feel free to contact us.`,
     ``,
-    `📞 *Contact:* +91 79774 11572`,
+    `📞 *Contact:* +91 84596 08647`,
     ``,
     `Have a great day! ✨`
   ].join('\n');
@@ -431,6 +431,7 @@ app.get('/api/admin/orders', authMiddleware, async (req, res) => {
       status: req.query.status || '',
       store_id: req.admin.role !== 'superadmin' ? req.admin.storeId : (req.query.store_id || ''),
       payment_status: req.query.payment_status || '',
+      delivery_status: req.query.delivery_status || '',
       date_from: req.query.date_from || '',
       date_to: req.query.date_to || '',
       search: req.query.search || '',
@@ -551,6 +552,33 @@ app.put('/api/admin/orders/:id/notes', authMiddleware, async (req, res) => {
   }
 });
 
+// Admin: Schedule / update order delivery slot manually
+app.put('/api/admin/orders/:id/delivery', authMiddleware, async (req, res) => {
+  try {
+    const { delivery_date, delivery_time_slot } = req.body;
+    if (!delivery_date || !delivery_time_slot) {
+      return res.status(400).json({ error: 'delivery_date and delivery_time_slot are required' });
+    }
+
+    const order = await db.getOrder(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Update delivery details in database
+    await db.updateOrderDelivery(req.params.id, delivery_date, delivery_time_slot);
+
+    // Send confirmation message to customer via WhatsApp
+    const msg = `🧺 *Jagdamb Laundry & Drycleaners*\n\nYour delivery slot has been scheduled/updated by the store! 🎉\n\n📋 *Order ID:* #${order.id}\n📅 *Delivery Date:* ${delivery_date}\n⏰ *Time Slot:* ${delivery_time_slot}\n\nWe will deliver your fresh clothes at the scheduled time! \n\n📞 *Contact:* +91 84596 08647`;
+    sendWhatsAppMessage(order.phone, msg).catch(err => {
+      console.warn('Failed to send delivery confirmation WhatsApp from admin:', err.message);
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating order delivery slot:', err);
+    res.status(500).json({ error: 'Failed to update delivery slot' });
+  }
+});
+
 // Admin: Delete order
 app.delete('/api/admin/orders/:id', authMiddleware, async (req, res) => {
   try {
@@ -631,7 +659,7 @@ app.post('/api/public/orders/:id/schedule-delivery', async (req, res) => {
     await db.updateOrderDelivery(req.params.id, delivery_date, delivery_time_slot);
 
     // Send confirmation message to customer via WhatsApp
-    const msg = `🧺 *Jagdamb Laundry & Drycleaners*\n\nYour delivery slot has been successfully booked! 🎉\n\n📋 *Order ID:* #${order.id}\n📅 *Delivery Date:* ${delivery_date}\n⏰ *Time Slot:* ${delivery_time_slot}\n\nWe will deliver your fresh clothes at the scheduled time! \n\n📞 *Contact:* +91 79774 11572`;
+    const msg = `🧺 *Jagdamb Laundry & Drycleaners*\n\nYour delivery slot has been successfully booked! 🎉\n\n📋 *Order ID:* #${order.id}\n📅 *Delivery Date:* ${delivery_date}\n⏰ *Time Slot:* ${delivery_time_slot}\n\nWe will deliver your fresh clothes at the scheduled time! \n\n📞 *Contact:* +91 84596 08647`;
     sendWhatsAppMessage(order.phone, msg).catch(err => {
       console.warn('Failed to send delivery confirmation WhatsApp:', err.message);
     });

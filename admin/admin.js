@@ -221,12 +221,12 @@ async function loadStoreFilters() {
   try {
     const stores = await api('/api/admin/stores');
     const filterStore = $('filterStore');
-    if (filterStore) {
+    if (filterStore && Array.isArray(stores)) {
       filterStore.innerHTML = '<option value="">All Stores</option>' +
         stores.map(s => `<option value="${s.id}">${s.short_name || s.name}</option>`).join('');
     }
     const newAdminStore = $('newAdminStore');
-    if (newAdminStore) {
+    if (newAdminStore && Array.isArray(stores)) {
       newAdminStore.innerHTML = '<option value="">All Stores (Super Admin)</option>' +
         stores.map(s => `<option value="${s.id}">${s.short_name || s.name}</option>`).join('');
     }
@@ -435,11 +435,13 @@ async function loadOrders() {
     const search = $('orderSearch')?.value;
     const status = $('filterStatus')?.value;
     const payment = $('filterPayment')?.value;
+    const delivery = $('filterDelivery')?.value;
     const store = $('filterStore')?.value;
 
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (payment) params.set('payment_status', payment);
+    if (delivery) params.set('delivery_status', delivery);
     if (store) params.set('store_id', store);
 
     ordersData = await api(`/api/admin/orders?${params.toString()}`);
@@ -468,7 +470,7 @@ function renderOrdersTable(orders) {
       <td>${o.store_name || '—'}</td>
       <td>${o.items ? o.items.length + ' items' : '0'}</td>
       <td><strong>${currency(o.total)}</strong></td>
-      <td><span class="status-badge ${getPaymentClass(o.payment_status)}">${o.payment_status}</span></td>
+      <td><span class="status-badge ${getPaymentClass(o.payment_status, o.payment_method)}">${getPaymentStatusText(o.payment_status, o.payment_method)}</span></td>
       <td>
         <select class="status-select" onchange="changeOrderStatus('${o.id}', this.value)">
           ${['New','Picked Up','In Process','Ready','Delivered','Completed','Cancelled'].map(s =>
@@ -476,6 +478,7 @@ function renderOrdersTable(orders) {
           ).join('')}
         </select>
       </td>
+      <td>${o.delivery_date ? `<span style="color:var(--accent);font-weight:600;"><small>${formatPickupDate(o.delivery_date)}<br>${o.delivery_time_slot}</small></span>` : '<span style="color:var(--text-dim);font-size:0.8rem;">—</span>'}</td>
       <td><small>${formatDateTime(o.created_at)}</small></td>
       <td>
         <div class="action-btns">
@@ -489,7 +492,7 @@ function renderOrdersTable(orders) {
 }
 
 // Order filters
-['orderSearch', 'filterStatus', 'filterPayment', 'filterStore'].forEach(id => {
+['orderSearch', 'filterStatus', 'filterPayment', 'filterStore', 'filterDelivery'].forEach(id => {
   const el = $(id);
   if (el) {
     el.addEventListener(id === 'orderSearch' ? 'input' : 'change', debounce(loadOrders, 300));
@@ -522,7 +525,7 @@ window.whatsappOrder = function(id) {
   let msg;
   if (order.order_status === 'Completed') {
     const siteUrl = window.location.origin;
-    msg = `👋 Hi ${order.customer_name}!!\n📋 Your order #${order.id}\n🎉 Your Order is Completed\n💰 Total: ${currency(order.total)}\n🧺 ..... Jagdamb Laundry @ Drycleaners\n\n\n\n\n🚚 Book your delivery slot: ${siteUrl}/?action=schedule-delivery&order_id=${order.id}`;
+    msg = `👋 Hi ${order.customer_name}!!\n📋 Your order #${order.id}\n🎉 Your Order is Completed\n💰 Total: ${currency(order.total)}\n ..... Jagdamb Laundry & Drycleaners🧺\n\n\n\n\n🚚 Book your delivery slot: ${siteUrl}/?action=schedule-delivery&order_id=${order.id}`;
   } else {
     msg = `Hi ${order.customer_name}! Your order #${order.id} status is: *${order.order_status}*\nTotal: ${currency(order.total)}\n\n— Jagdamb Laundry`;
   }
@@ -565,11 +568,24 @@ window.showOrderDetail = async function(id) {
         <div class="detail-item"><label>Phone</label><span>${order.phone}</span></div>
         <div class="detail-item"><label>Store</label><span>${order.store_name || '—'}</span></div>
         <div class="detail-item"><label>Pickup Date</label><span>${order.pickup_date ? `${formatPickupDate(order.pickup_date)}, ${order.time_slot}` : order.time_slot}</span></div>
-        <div class="detail-item"><label>Delivery Scheduled</label><span style="font-weight:bold;color:var(--accent);">${order.delivery_date ? `${formatPickupDate(order.delivery_date)}, ${order.delivery_time_slot}` : 'Not scheduled yet'}</span></div>
+        <div class="detail-item" style="grid-column: span 2; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--line); margin-top: 8px;">
+          <label style="font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px;">Delivery Slot Scheduling</label>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="date" id="detailDeliveryDate" value="${order.delivery_date || ''}" style="padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: 0.85rem;" />
+            <select id="detailDeliveryTimeSlot" style="padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: 0.85rem; cursor: pointer;">
+              <option value="">-- Choose Time Slot --</option>
+              <option value="09:00 AM - 12:00 PM" ${order.delivery_time_slot === '09:00 AM - 12:00 PM' ? 'selected' : ''}>09:00 AM - 12:00 PM</option>
+              <option value="12:00 PM - 03:00 PM" ${order.delivery_time_slot === '12:00 PM - 03:00 PM' ? 'selected' : ''}>12:00 PM - 03:00 PM</option>
+              <option value="03:00 PM - 06:00 PM" ${order.delivery_time_slot === '03:00 PM - 06:00 PM' ? 'selected' : ''}>03:00 PM - 06:00 PM</option>
+              <option value="06:00 PM - 09:00 PM" ${order.delivery_time_slot === '06:00 PM - 09:00 PM' ? 'selected' : ''}>06:00 PM - 09:00 PM</option>
+            </select>
+            <button class="btn-primary btn-sm" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 4px;" onclick="saveOrderDeliveryAdmin('${order.id}')">Save Slot</button>
+          </div>
+        </div>
         <div class="detail-item"><label>Address</label><span>${order.address}</span></div>
         <div class="detail-item"><label>Location</label><span>${mapLink}</span></div>
         <div class="detail-item"><label>Payment Method</label><span>${order.payment_method}</span></div>
-        <div class="detail-item"><label>Payment Status</label><span class="status-badge ${getPaymentClass(order.payment_status)}">${order.payment_status}</span></div>
+        <div class="detail-item"><label>Payment Status</label><span class="status-badge ${getPaymentClass(order.payment_status, order.payment_method)}">${getPaymentStatusText(order.payment_status, order.payment_method)}</span></div>
       </div>
 
       <div class="order-items-list">
@@ -620,6 +636,22 @@ window.saveOrderNotes = async function(id) {
   const notes = $('orderNotesInput')?.value || '';
   await api(`/api/admin/orders/${id}/notes`, { method: 'PUT', body: { notes } });
   toast('Notes saved');
+};
+
+window.saveOrderDeliveryAdmin = async function(id) {
+  const deliveryDate = $('detailDeliveryDate')?.value;
+  const deliveryTimeSlot = $('detailDeliveryTimeSlot')?.value;
+  if (!deliveryDate || !deliveryTimeSlot) {
+    toast('Please select both delivery date and time slot');
+    return;
+  }
+  await api(`/api/admin/orders/${id}/delivery`, {
+    method: 'PUT',
+    body: { delivery_date: deliveryDate, delivery_time_slot: deliveryTimeSlot }
+  });
+  toast('Delivery slot updated successfully');
+  $('orderModal').setAttribute('aria-hidden', 'true');
+  loadOrders();
 };
 
 window.updateDetailStatus = async function(id) {
@@ -964,7 +996,7 @@ async function loadPayments() {
         <td>${o.customer_name}</td>
         <td><strong>${currency(o.total)}</strong></td>
         <td>${o.payment_method}</td>
-        <td><span class="status-badge ${getPaymentClass(o.payment_status)}">${o.payment_status}</span></td>
+        <td><span class="status-badge ${getPaymentClass(o.payment_status, o.payment_method)}">${getPaymentStatusText(o.payment_status, o.payment_method)}</span></td>
         <td><small>${formatDateTime(o.created_at)}</small></td>
         <td>
           <div class="action-btns">
@@ -1234,10 +1266,19 @@ function getStatusClass(status) {
   return map[status] || 'pending';
 }
 
-function getPaymentClass(status) {
-  if (status === 'Paid') return 'paid';
+function getPaymentClass(status, method) {
+  if (status === 'Paid') {
+    return (method === 'Online Payment' || method === 'Online') ? 'online-paid' : 'paid';
+  }
   if (status === 'COD Pending') return 'cod';
   return 'pending';
+}
+
+function getPaymentStatusText(status, method) {
+  if (status === 'Paid') {
+    return (method === 'Online Payment' || method === 'Online') ? 'Online Payment Done' : 'Paid';
+  }
+  return status;
 }
 
 function debounce(fn, ms) {
